@@ -4,12 +4,18 @@ const Discord = require('discord.js');
 const client = new Discord.Client();
 const moment = require('moment');
 
+const express = require('express');
+
 // Database stuff
 const Pool = require('pg').Pool;
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: true
 });
+
+// express stuff to keep heroku happy
+const PORT = process.env.PORT || 5000
+express().listen(PORT, () => console.log(`Listening on ${ PORT }`));
 
 const PREFIX = '!';
 
