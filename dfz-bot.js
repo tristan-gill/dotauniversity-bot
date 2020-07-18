@@ -235,7 +235,8 @@ const sendSpamMessage = async () => {
 
   for (const member of guildMembers.members) {
     let hasRole = false;
-    for (const tier of ['699721374134173757', '699721402470891620', '699721426214715462', '729202731012718663', '699721454970732554', '733789403474034728']) {
+    //                  tier1                 tier2                 tier3                 tier4                 grad                  tryout
+    for (const tier of ['629623752010891284', '629623832990187520', '629623895401562123', '724326915753771068', '699721454970732554', '733789403474034728']) {
       if (member[1] && member[1]._roles.includes(tier)) {
         hasRole = true;
         break;
