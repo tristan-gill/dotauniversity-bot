@@ -711,23 +711,8 @@ function isWatchingChannel (discord_id) {
   );
 }
 
-const handleNewVentMessage = async (msg) => {
-  const batchSize = 10;
-
-  const ventChannel = await client.channels.get(process.env.DFZ_VENT_ROOM);
-  const messages = await ventChannel.fetchMessages({limit: batchSize});
-
-  if (messages.size >= batchSize) {
-    await ventChannel.bulkDelete(batchSize);
-  }
-}
-
 client.on('message', async (msg) => {
   try {
-    if (msg.channel.id === process.env.DFZ_VENT_ROOM) {
-      await handleNewVentMessage(msg);
-    }
-
     // not watching and not a dm
     if (!isWatchingChannel(msg.channel.id) && !(msg.channel instanceof Discord.DMChannel)) {
       return;
