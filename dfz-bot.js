@@ -36,7 +36,6 @@ client.once('ready', async () => {
 
   // await updateUsersTable();
 
-  // await sendSpamMessage();
 });
 
 const commandForName = {};
@@ -225,57 +224,6 @@ const deleteLobby = async (messageId) => {
   lobbies = lobbies.filter((lobby) => {
     return lobby.id !== messageId;
   });
-}
-
-
-// spam message commands
-const sendSpamMessage = async () => {
-  const guild = client.guilds.get('629298549976334337');
-  const guildMembers = await guild.fetchMembers();
-
-  for (const member of guildMembers.members) {
-    let hasRole = false;
-    //                  tier1                 tier2                 tier3                 tier4                 grad                  tryout
-    for (const tier of ['629623752010891284', '629623832990187520', '629623895401562123', '724326915753771068', '699721454970732554', '733789403474034728']) {
-      if (member[1] && member[1]._roles.includes(tier)) {
-        hasRole = true;
-        break;
-      }
-    }
-
-    if (hasRole) {
-      await member[1].send(`**A message from Xalnara:**
-
-Hi,
-
-I wanted to personally reach out to you before I announce this publicly.
-
-As you might know, I'm not the owner and founder of DotaFromZero, however, I believe my contributions made it into what it is today; as an admin I’ve completely restructured the server and its operations, and have been working and following up on several project behind the scenes. I've been active on DFZ every single day ever since I joined last October. I deeply care about the project and all its members, so it’s only natural that the project started feeling more and more as my own, rather than something I ‘just’ manage for somebody else.
-
-For this reason, it's been incredibly frustrating for me that I was never able to claim ownership for something I've invested so much of my time in. The current owner (Beni) has been pretty much inactive on the server since December, and as a result of this, the server's growth, and other related projects have suffered on several occasions. All attempts to bring him back on board have been unsuccessful or ran into difficulties in communication.
-
-It terrifies me that everything we've been worked on could be gone in split second, and there is nothing I could do about it. After several staff members shared the same sentiment, I’ve decided to take an initiative and create a new server, and move our operations over completely.
-
-I want to invite you over to the new server, and I really hope you will continue to join our lobbies. If you decide to join, all your roles will be automatically transferred over to the new server.
-https://discord.gg/vyFhenK
-
-I will revert all my contributions to the old server, and after my public post I will resign as admin and will take my leave from DotaFromZero.
-
-**I want to take this opportunity to thank you for joining our journey in DFZ, and I hope to see you around.**
-
-Please feel free to message me anytime :)
-Xalnara.`);
-    }
-  }
-}
-
-
-// !sendspam
-commandForName['sendspam'] = {
-  owner: true,
-  execute: async (msg, args) => {
-    await sendSpamMessage();
-  }
 }
 
 
@@ -763,8 +711,23 @@ function isWatchingChannel (discord_id) {
   );
 }
 
+const handleNewVentMessage = async (msg) => {
+  const batchSize = 10;
+
+  const ventChannel = await client.channels.get(process.env.DFZ_VENT_ROOM);
+  const messages = await ventChannel.fetchMessages({limit: batchSize});
+
+  if (messages.size >= batchSize) {
+    await ventChannel.bulkDelete(batchSize);
+  }
+}
+
 client.on('message', async (msg) => {
   try {
+    if (msg.channel.id === process.env.DFZ_VENT_ROOM) {
+      await handleNewVentMessage(msg);
+    }
+
     // not watching and not a dm
     if (!isWatchingChannel(msg.channel.id) && !(msg.channel instanceof Discord.DMChannel)) {
       return;
