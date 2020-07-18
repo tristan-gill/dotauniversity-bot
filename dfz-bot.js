@@ -718,7 +718,7 @@ const handleNewVentMessage = async (msg) => {
   const messages = await ventChannel.fetchMessages({limit: batchSize});
 
   if (messages.size >= batchSize) {
-    await ventChannel.bulkDelete(99);
+    await ventChannel.bulkDelete(batchSize);
   }
 }
 
