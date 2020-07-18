@@ -9,7 +9,7 @@ const express = require('express');
 // Database stuff
 const Pool = require('pg').Pool;
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: process.env.HEROKU_POSTGRESQL_ONYX_URL,
   ssl: true
 });
 
@@ -33,9 +33,153 @@ client.once('ready', async () => {
   console.log('Ready!');
 
   await loadPastLobbies();
+
+  // await updateUsersTable();
+
+  // await sendSpamMessage();
 });
 
 const commandForName = {};
+
+
+// users / transfer commands
+const updateUsersTable = async () => {
+  const dbClient = await pool.connect();
+
+  const guild = client.guilds.get('629298549976334337');
+  const guildMembers = await guild.fetchMembers();
+
+  for (const member of guildMembers.members) {
+    await saveUser({
+      id: member[0],
+      roles: member[1]._roles,
+      username: member[1].user.username
+    }, dbClient);
+  }
+
+  dbClient.release();
+}
+
+const saveUser = async (user, dbClient) => {
+  const text = `
+    insert into users(id, roles, username)
+    values ($1, $2, $3)
+    on conflict on constraint users_pkey
+    do nothing;
+  `;
+  const values = Object.values(user);
+  await dbClient.query(text, values);
+}
+
+const rolesMap = {
+  // yagpdb.xyz
+  "664261527687266305": null,
+  // admin
+  "664843392756482098": "731171811152101397",
+  //intermediate
+  "688870180646158399": "731171811143975022",
+  //bots
+  "629653230971781120": "731171811143975021",
+  // headcoach
+  "631918135905091594": "731171811143975020",
+  //coach
+  "629623683958177793": "731171811143975019",
+  // coach inhouse
+  "700113712945823874": "731171811143975018",
+  //staff
+  "629624134179094579": "731171811143975017",
+  //tournament champion
+  "673338917117755403": "731171811143975016",
+  // mod mute
+  "679375449104580629": "731171811143975015",
+  // honorary
+  "664455951897722881": "731171811143975014",
+  // server booster is this automatic?
+  "647359339010457604": null,
+  // mee6
+  "629650879397756949": null,
+  // tournament org
+  "670732153910198312": "731171811143975013",
+  // tier 1
+  "629623752010891284": "731171811131392080",
+  // tier 2
+  "629623832990187520": "731171811131392079",
+  // tier 3
+  "629623895401562123": "731171811131392078",
+  // tier 4
+  "724326915753771068": "731171811131392077",
+  // grad
+  "688703108888526886": "731171811131392076",
+  // unnoficial inhouse
+  "723931615352455189": "731171811131392075",
+  // bot prac
+  "723931625230041100": "731171811131392074",
+  // tryout
+  "631474548319191053": "731171811131392073",
+  // workshop
+  "680498688430440558": "731171811131392072",
+  // events
+  "698832577150320700": "731171811131392071",
+  // table sim
+  "698935479852204122": "731171810757967981",
+  // eu coach
+  "669872208847437844": "731171810757967980",
+  // na coach
+  "668136392567816202": "731171810757967979",
+  // sea coach
+  "669867457196064818": "731171810757967978",
+  // eu
+  "664261682415271986": "731171810757967977",
+  // na
+  "664261634612789269": "731171810757967976",
+  // sea
+  "664261661472849922": "731171810757967975",
+  // community
+  "630697798022463497": "731171810757967974",
+  // bota
+  "629826340379557912": null,
+  //dfz
+  "686308071194230818": null,
+  // mango
+  "631428023916167198": null,
+  // gather
+  "631867955851821086": null,
+  // betterttv
+  "634017453147422741": null,
+  // serverstats
+  "664506937949421569": null,
+  // logger
+  "693550838827843665": null,
+  // groovy
+  "696040292033364079": null
+};
+
+const getRoles = async (user_id) => {
+  const query = `
+    select
+      roles
+    from users
+    where id = '${user_id}';
+  `;
+
+  const response = await pool.query(query);
+
+  if (response.rows && response.rows.length) {
+    return response.rows[0].roles;
+  }
+}
+
+client.on('guildMemberAdd', async (member) => {
+  const previousRoles = await getRoles(member.id);
+
+  for (const role of previousRoles) {
+    const newRole = rolesMap[role];
+    if (newRole) {
+      await member.addRole(newRole);
+    }
+  }
+});
+
 
 // lobby database commands
 const loadPastLobbies = async () => {
@@ -82,6 +226,37 @@ const deleteLobby = async (messageId) => {
     return lobby.id !== messageId;
   });
 }
+
+
+// spam message commands
+const sendSpamMessage = async () => {
+  const guild = client.guilds.get('629298549976334337');
+  const guildMembers = await guild.fetchMembers();
+
+  for (const member of guildMembers.members) {
+    let hasRole = false;
+    for (const tier of ['699721374134173757', '699721402470891620', '699721426214715462', '729202731012718663', '699721454970732554', '733789403474034728']) {
+      if (member[1] && member[1]._roles.includes(tier)) {
+        hasRole = true;
+        break;
+      }
+    }
+
+    if (hasRole) {
+      await member[1].send(`**New server**\nJoin up yo: ${newServerGeneralInvite.url}`);
+    }
+  }
+}
+
+
+// !sendspam
+commandForName['sendspam'] = {
+  owner: true,
+  execute: async (msg, args) => {
+    await sendSpamMessage();
+  }
+}
+
 
 /*
 lobby = {
