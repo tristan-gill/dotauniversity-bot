@@ -243,7 +243,27 @@ const sendSpamMessage = async () => {
     }
 
     if (hasRole) {
-      await member[1].send(`**New server**\nJoin up yo: ${newServerGeneralInvite.url}`);
+      await member[1].send(`**A message from Xalnara:**
+
+Hi,
+
+I wanted to personally reach out to you before I announce this publicly.
+
+As you might know, I'm not the owner and founder of DotaFromZero, however, I believe my contributions made it into what it is today; as an admin I’ve completely restructured the server and its operations, and have been working and following up on several project behind the scenes. I've been active on DFZ every single day ever since I joined last October. I deeply care about the project and all its members, so it’s only natural that the project started feeling more and more as my own, rather than something I ‘just’ manage for somebody else.
+
+For this reason, it's been incredibly frustrating for me that I was never able to claim ownership for something I've invested so much of my time in. The current owner (Beni) has been pretty much inactive on the server since December, and as a result of this, the server's growth, and other related projects have suffered on several occasions. All attempts to bring him back on board have been unsuccessful or ran into difficulties in communication.
+
+It terrifies me that everything we've been worked on could be gone in split second, and there is nothing I could do about it. After several staff members shared the same sentiment, I’ve decided to take an initiative and create a new server, and move our operations over completely.
+
+I want to invite you over to the new server, and I really hope you will continue to join our lobbies. If you decide to join, all your roles will be automatically transferred over to the new server.
+https://discord.gg/vyFhenK
+
+I will revert all my contributions to the old server, and after my public post I will resign as admin and will take my leave from DotaFromZero.
+
+**I want to take this opportunity to thank you for joining our journey in DFZ, and I hope to see you around.**
+
+Please feel free to message me anytime :)
+Xalnara.`);
     }
   }
 }
