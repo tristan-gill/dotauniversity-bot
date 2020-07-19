@@ -191,7 +191,11 @@ const loadPastLobbies = async () => {
     lobbies.push(lobby);
 
     // need to fetch the messages to add them to the
-    const test = await channel.fetchMessage(lobby.id);
+    try {
+      await channel.fetchMessage(lobby.id);
+    } catch (err) {
+      console.log({err});
+    }
   }
 }
 
