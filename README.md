@@ -36,3 +36,5 @@ CREATE TABLE users (
 
 CREATE UNIQUE INDEX users_pkey ON users(id text_ops);
 ```
+
+Beyond this all you need is the normal npm setup stuff. 
