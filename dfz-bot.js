@@ -170,7 +170,7 @@ const getRoles = async (user_id) => {
 
 client.on('guildMemberAdd', async (member) => {
   const previousRoles = await getRoles(member.id);
-  if (previous && previousRoles.length) {
+  if (previousRoles && previousRoles.length) {
     for (const role of previousRoles) {
       const newRole = rolesMap[role];
       if (newRole) {
