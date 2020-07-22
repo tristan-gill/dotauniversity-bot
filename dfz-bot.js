@@ -170,11 +170,12 @@ const getRoles = async (user_id) => {
 
 client.on('guildMemberAdd', async (member) => {
   const previousRoles = await getRoles(member.id);
-
-  for (const role of previousRoles) {
-    const newRole = rolesMap[role];
-    if (newRole) {
-      await member.addRole(newRole);
+  if (previous && previousRoles.length) {
+    for (const role of previousRoles) {
+      const newRole = rolesMap[role];
+      if (newRole) {
+        await member.addRole(newRole);
+      }
     }
   }
 });
@@ -662,6 +663,10 @@ commandForName['answer'] = {
 
     const messageId = args[0];
     const answer = args.slice(1).join(' ');
+
+    if (answer.length > 1024) {
+      return author.send('Shorter than 1024 characters, sorry eh.');
+    }
 
     const qaChannel = await client.channels.get(process.env.DFZ_QA_CHANNEL);
 
