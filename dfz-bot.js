@@ -461,6 +461,17 @@ client.on('raw', async (event) => {
 
         return;
       }
+
+      for (const p of players) {
+        if (p.roles.length < 1) {
+          await removeFromLobby(lobby, p, message);
+
+          await saveLobby({
+            id: lobby.id,
+            data: lobby
+          });
+        }
+      }
     }
   }
 });
@@ -469,7 +480,7 @@ const addToLobby = async (lobby, user, reaction, tier, positionNumber) => {
   const player = {
     id: user.id,
     tierId: tier.id,
-    signupTime: moment(),
+    signupTime: moment().format(),
     roles: [positionNumber]
   };
 
@@ -526,7 +537,7 @@ const removeFromLobby = async (lobby, user, message) => {
   allPlayers.splice(index, 1);
 
   allPlayers.sort((a, b) => {
-    if (a.signupTime.isBefore(b.signupTime)) {
+    if (a.signupTime && moment(a.signupTime).isBefore(b.signupTime)) {
       return -1;
     }
     return 1;
@@ -588,23 +599,25 @@ const getPostPrintString = (lobby) => {
 
     lobbyStrings.push(`**Lobby ${j+1}**\n`);
 
-    players.sort((a, b) => {
-      const aTier = queuableRoles.indexOf(a.tierId);
-      const bTier = queuableRoles.indexOf(b.tierId);
+    if (players.length >= 10) {
+      players.sort((a, b) => {
+        const aTier = queuableRoles.indexOf(a.tierId);
+        const bTier = queuableRoles.indexOf(b.tierId);
 
-      if (aTier === bTier) {
-        const aNumRoles = a.roles.length;
-        const bNumRoles = b.roles.length;
+        if (aTier === bTier) {
+          const aNumRoles = a.roles.length;
+          const bNumRoles = b.roles.length;
 
-        if (aNumRoles === bNumRoles) {
-          return a.roles[0] - b.roles[0];
+          if (aNumRoles === bNumRoles) {
+            return a.roles[0] - b.roles[0];
+          } else {
+            return aNumRoles - bNumRoles;
+          }
         } else {
-          return aNumRoles - bNumRoles;
+          return bTier - aTier;
         }
-      } else {
-        return bTier - aTier;
-      }
-    });
+      });
+    }
 
     const playersRoleBox = players.map((player) => {
       const rolesArray = [];
