@@ -368,6 +368,37 @@ client.on('messageReactionAdd', async (reaction, user) => {
 
       return reaction.remove(user);
     } else {
+      // lets see if the coach/admin clicked 12345
+      const positionNumber = emojiNumbers.indexOf(reaction.emoji.name);
+
+      if (positionNumber && positionNumber >= 1 && positionNumber <= 5) {
+        // ok so coach clicked on one of the numbers, lets add or remove the beginner tier corresponding to that number
+        const clickedTier = queuableRoles[positionNumber];
+
+        // could be more efficient i think
+        if (lobby.tiers.includes(clickedTier)) {
+          lobby.tiers = lobby.tiers.filter((tier) => tier !== clickedTier);
+
+          await saveLobby({
+            id: lobby.id,
+            data: lobby
+          });
+
+          const embed = generateEmbed(lobby);
+          await reaction.message.edit(embed);
+        } else {
+          lobby.tiers.push(clickedTier);
+
+          await saveLobby({
+            id: lobby.id,
+            data: lobby
+          });
+
+          const embed = generateEmbed(lobby);
+          await reaction.message.edit(embed);
+        }
+      }
+
       return reaction.remove(user);
     }
   }
