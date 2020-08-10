@@ -1,4 +1,4 @@
-#dfz-bot
+#dotauniversity-bot
 
 You'll need to set up your own discord bot to test with.
 [Discord Developers](https://discord.com/developers/applications)
