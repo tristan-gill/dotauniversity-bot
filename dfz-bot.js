@@ -25,6 +25,52 @@ const voiceChannels = [process.env.DFZ_VC_1, process.env.DFZ_VC_2, process.env.D
 
 const questionAnswerableIds = [process.env.COACH, process.env.DFZ_ADMIN, process.env.DFZ_QA_CONTRIBUTOR];
 
+// channels that the bot will show the tip message in
+/*
+ * admin-chat           731171811437445152
+ * internal-talk        731171811437445153
+ * beep-boop            731171811437445154
+ * general              731171811437445160
+ * looking-for-group    731171811647291456
+ * bot-chat             731171811647291457
+ * dota2-talk           731171811647291460
+ * esports-discussions  731171811844161608
+ * bot-practice         731171812024778842
+ * lobby-discussions    731171812024778843
+ * eu-general           731171812238557203
+ * na-general           731171812481957923
+ * sea-general          731171812666245222
+ * eu-coaches           731171812481957920
+ * na-coaches           731171812481957926
+ * sea-coaches          731171812666245223
+ * memes-and-dreams     731171812666245225
+ * art-station          731171812666245226
+ * anime-channel        731171812666245227
+ * muted-text-channel   731171812666245229
+ */
+const whitelistedTipChannels = {
+  '731171811437445152': true,
+  '731171811437445153': true,
+  '731171811437445154': true,
+  '731171811437445160': true,
+  '731171811647291456': true,
+  '731171811647291457': true,
+  '731171811647291460': true,
+  '731171811844161608': true,
+  '731171812024778842': true,
+  '731171812024778843': true,
+  '731171812238557203': true,
+  '731171812481957923': true,
+  '731171812666245222': true,
+  '731171812481957920': true,
+  '731171812481957926': true,
+  '731171812666245223': true,
+  '731171812666245225': true,
+  '731171812666245226': true,
+  '731171812666245227': true,
+  '731171812666245229': true
+};
+
 // array of lobby posts
 let lobbies;
 
@@ -274,6 +320,7 @@ commandForName['post'] = {
     }
 
     const lobby = {
+      coaches: [],
       fields: [
         []
       ],
@@ -310,12 +357,201 @@ commandForName['post'] = {
     await message.react('✅');
     await message.react('🗒️');
     await message.react('🔒');
+    await message.react('📚');
   }
 }
+
+
+// ~~~~~~~~~~~~~~~~ TIPS STUFF ~~~~~~~~~~~~~~~~
+
+const defaultTips = 3;
+
+const getUsersTips = async (userId, dbClient) => {
+  const query = `
+    select
+      id, current_tips, received_tips
+    from users_tips
+    where id = '${userId}';
+  `;
+
+  const response = await dbClient.query(query);
+
+  if (response.rows && response.rows.length) {
+    return response.rows[0];
+  }
+}
+
+const getTipByMessageId = async (messageId, dbClient) => {
+  const query = `
+    select
+      embed_id
+    from tips
+    where message_id = '${messageId}';
+  `;
+
+  const response = await dbClient.query(query);
+
+  if (response.rows && response.rows.length) {
+    return response.rows[0].embed_id;
+  }
+
+  return null;
+}
+
+const createUsersTips = async (userTips, dbClient) => {
+  const text = `
+    insert into users_tips(id, current_tips, received_tips)
+    values ($1, $2, $3)
+    on conflict on constraint users_tips_pkey
+    do nothing;
+  `;
+  const values = Object.values(userTips);
+  await dbClient.query(text, values);
+}
+
+const decrementCurrentTips = async (userId, dbClient) => {
+  const query = `
+    UPDATE users_tips
+    SET current_tips = current_tips - 1
+    WHERE id = '${userId}';
+  `;
+
+  await dbClient.query(query);
+}
+
+const incrementReceivedTips = async (userId, dbClient) => {
+  const query = `
+    UPDATE users_tips
+    SET received_tips = received_tips + 1
+    WHERE id = '${userId}';
+  `;
+
+  await dbClient.query(query);
+}
+
+const createTip = async (sender_id, receiver_id, message, embed_id, dbClient) => {
+  const text = `
+    insert into tips(sender_id, receiver_id, message, message_id, embed_id)
+    values ($1, $2, $3, $4, $5)
+    on conflict on constraint tips_pkey
+    do nothing;
+  `;
+
+  const values = Object.values({
+    sender_id,
+    receiver_id,
+    message: message.content,
+    message_id: message.id,
+    embed_id
+  });
+  await dbClient.query(text, values);
+}
+
+const updateTipEmbedMessageId = async (messageId, embedMessageId, dbClient) => {
+  const query = `
+    UPDATE tips
+    SET embed_id = '${embedMessageId}'
+    WHERE message_id = '${messageId}';
+  `;
+
+  await dbClient.query(query);
+}
+
+const generateTipEmbed = (receiver, sender, receiverUsersTips, senderUsersTips, message) => {
+  const embed = new Discord.RichEmbed();
+  embed.setColor([222, 97, 1]);
+
+  try {
+    embed.setDescription(message.content.substring(0, 30));
+  } catch (err) {
+    console.log(err)
+  }
+
+  embed.setAuthor(`${receiver.nickname || receiver.username} has been tipped!`, avatarUrl(receiver.id, receiver.avatar));
+  embed.setFooter(sender.nickname || sender.username, avatarUrl(sender.id, sender.avatar));
+
+  embed.addField(`To: ${receiver.nickname || receiver.username}`, `available: ${receiverUsersTips.current_tips} - received: ${receiverUsersTips.received_tips}`);
+  embed.addField(`Recent tip from: ${sender.nickname || sender.username}`, `available: ${senderUsersTips.current_tips} - received: ${senderUsersTips.received_tips}`);
+
+  embed.setThumbnail('https://cdn.discordapp.com/emojis/743131216475062443.png?v=1');
+
+  return embed;
+}
+
+// ~~~~~~~~~~~~~~~~ END TIPS STUFF ~~~~~~~~~~~~~~~~
 
 client.on('messageReactionAdd', async (reaction, user) => {
   if (user.bot) {
     return;
+  }
+
+  // tip handling
+  if (reaction.emoji.name === 'Tip') {
+    // cant tip urself
+    if (user.id === reaction.message.author.id) {
+      return reaction.remove(user);
+    }
+
+    const dbClient = await pool.connect();
+
+    let sendersTips = await getUsersTips(user.id, dbClient);
+
+    // if they dont exits, create with default tips num -1
+    if (!sendersTips) {
+      sendersTips = {
+        id: user.id,
+        current_tips: defaultTips - 1,
+        received_tips: 0
+      };
+      await createUsersTips(sendersTips, dbClient);
+    } else {
+      // they do exist, check available tips
+      if (sendersTips.current_tips >= 1) {
+        sendersTips.current_tips = sendersTips.current_tips - 1;
+        await decrementCurrentTips(user.id, dbClient);
+      } else {
+        // not enough tips
+        console.log('not enough tips');
+        dbClient.release();
+        return reaction.remove(user);
+      }
+    }
+
+    // add tips
+    let receiverTips = await getUsersTips(reaction.message.author.id, dbClient);
+
+    if (!receiverTips) {
+      receiverTips = {
+        id: reaction.message.author.id,
+        current_tips: defaultTips,
+        received_tips: 1
+      };
+      await createUsersTips(receiverTips, dbClient);
+    } else {
+      receiverTips.received_tips = receiverTips.received_tips + 1;
+      await incrementReceivedTips(reaction.message.author.id, dbClient);
+    }
+
+    // check if this message already has been tipped before
+    const previousEmbedId = await getTipByMessageId(reaction.message.id, dbClient);
+    console.log({previousEmbedId})
+
+    await createTip(user.id, reaction.message.author.id, reaction.message, previousEmbedId || '', dbClient);
+
+    // post message
+    if (whitelistedTipChannels[reaction.message.channel.id]) {
+      const embed = generateTipEmbed(reaction.message.author, user, receiverTips, sendersTips, reaction.message);
+
+      if (previousEmbedId) {
+        const previousEmbedMessage = await reaction.message.channel.fetchMessage(previousEmbedId);
+        await previousEmbedMessage.edit(embed);
+      } else {
+        const embedMessage = await reaction.message.channel.send(embed);
+        await updateTipEmbedMessageId(reaction.message.id, embedMessage.id, dbClient);
+      }
+    }
+
+    dbClient.release();
   }
 
   const lobby = lobbies.find((lobby) => lobby.id === reaction.message.id);
@@ -362,6 +598,22 @@ client.on('messageReactionAdd', async (reaction, user) => {
         lobby.locked = !lobby.locked;
         await deleteLobby(lobby.id);
       }
+
+      const embed = generateEmbed(lobby);
+      await reaction.message.edit(embed);
+
+      return reaction.remove(user);
+    } else if (reaction.emoji.name === '📚') {
+      if (lobby.coaches.includes(user.id)) {
+        lobby.coaches = lobby.coaches.filter((coach) => coach !== user.id);
+      } else {
+        lobby.coaches.push(user.id);
+      }
+
+      await saveLobby({
+        id: lobby.id,
+        data: lobby
+      });
 
       const embed = generateEmbed(lobby);
       await reaction.message.edit(embed);
@@ -617,6 +869,12 @@ const generateEmbed = (lobby) => {
       embed.addField(`Lobby ${i+1}`, playersString);
     }
   }
+
+  const coachesString = lobby.coaches.map((coach) => {
+    return `<@${coach}>`;
+  }).join(' ');
+
+  embed.addField('Coaches', coachesString || '-');
 
   return embed;
 }
