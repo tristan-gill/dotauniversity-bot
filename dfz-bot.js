@@ -354,10 +354,10 @@ commandForName['post'] = {
     await message.react('3️⃣');
     await message.react('4️⃣');
     await message.react('5️⃣');
-    await message.react('✅');
-    await message.react('🗒️');
-    await message.react('🔒');
     await message.react('📚');
+    await message.react('🗒️');
+    await message.react('❗');
+    await message.react('🔒');
   }
 }
 
@@ -462,7 +462,7 @@ const generateTipEmbed = (receiver, sender, receiverUsersTips, senderUsersTips, 
   embed.setColor([222, 97, 1]);
 
   try {
-    embed.setDescription(message.content.substring(0, 30));
+    embed.setDescription(message.content.substring(0, 2048));
   } catch (err) {
     console.log(err)
   }
@@ -568,7 +568,7 @@ client.on('messageReactionAdd', async (reaction, user) => {
   const isAdmin = guildUser.roles.some((role) => role.id === process.env.DFZ_ADMIN);
 
   if (isCoach || isAdmin) {
-    if (reaction.emoji.name === '✅') {
+    if (reaction.emoji.name === '❗') {
       // remind
       // for each group in the post
       for (let l = 0; l < lobby.fields.length; l++) {
