@@ -356,7 +356,7 @@ commandForName['post'] = {
     await message.react('5️⃣');
     await message.react('📚');
     await message.react('🗒️');
-    await message.react('❗');
+    await message.react('✅');
     await message.react('🔒');
   }
 }
@@ -568,7 +568,7 @@ client.on('messageReactionAdd', async (reaction, user) => {
   const isAdmin = guildUser.roles.some((role) => role.id === process.env.DFZ_ADMIN);
 
   if (isCoach || isAdmin) {
-    if (reaction.emoji.name === '❗') {
+    if (reaction.emoji.name === '✅') {
       // remind
       // for each group in the post
       for (let l = 0; l < lobby.fields.length; l++) {
