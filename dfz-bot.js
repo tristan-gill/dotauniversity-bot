@@ -485,6 +485,20 @@ client.on('messageReactionAdd', async (reaction, user) => {
     return;
   }
 
+  const lobby = lobbies.find((lobby) => lobby.id === reaction.message.id);
+
+  if (!lobby) {
+    return;
+  }
+
+  const guildUser = await reaction.message.channel.guild.fetchMember(user.id);
+  const tier = guildUser.roles.find((role) => queuableRoles.includes(role.id));
+
+  // if is a coach
+  const isCoach = guildUser.roles.some((role) => role.id === process.env.COACH);
+  const isAdmin = guildUser.roles.some((role) => role.id === process.env.DFZ_ADMIN);
+
+
   // tip handling
   if (reaction.emoji.name === 'Tip') {
     // cant tip urself
@@ -507,8 +521,10 @@ client.on('messageReactionAdd', async (reaction, user) => {
     } else {
       // they do exist, check available tips
       if (sendersTips.current_tips >= 1) {
-        sendersTips.current_tips = sendersTips.current_tips - 1;
-        await decrementCurrentTips(user.id, dbClient);
+        if (!isAdmin) {
+          sendersTips.current_tips = sendersTips.current_tips - 1;
+          await decrementCurrentTips(user.id, dbClient);
+        }
       } else {
         // not enough tips
         console.log('not enough tips');
@@ -554,18 +570,6 @@ client.on('messageReactionAdd', async (reaction, user) => {
     dbClient.release();
   }
 
-  const lobby = lobbies.find((lobby) => lobby.id === reaction.message.id);
-
-  if (!lobby) {
-    return;
-  }
-
-  const guildUser = await reaction.message.channel.guild.fetchMember(user.id);
-  const tier = guildUser.roles.find((role) => queuableRoles.includes(role.id));
-
-  // if is a coach
-  const isCoach = guildUser.roles.some((role) => role.id === process.env.COACH);
-  const isAdmin = guildUser.roles.some((role) => role.id === process.env.DFZ_ADMIN);
 
   if (isCoach || isAdmin) {
     if (reaction.emoji.name === '✅') {
