@@ -69,6 +69,9 @@ const whitelistedTipChannels = {
   '731171812666245226': true,
   '731171812666245227': true,
   '731171812666245229': true
+
+  // testing
+  // '742948255695896678': true
 };
 
 // array of lobby posts
@@ -485,12 +488,6 @@ client.on('messageReactionAdd', async (reaction, user) => {
     return;
   }
 
-  const lobby = lobbies.find((lobby) => lobby.id === reaction.message.id);
-
-  if (!lobby) {
-    return;
-  }
-
   const guildUser = await reaction.message.channel.guild.fetchMember(user.id);
   const tier = guildUser.roles.find((role) => queuableRoles.includes(role.id));
 
@@ -570,6 +567,12 @@ client.on('messageReactionAdd', async (reaction, user) => {
     dbClient.release();
   }
 
+
+  const lobby = lobbies.find((lobby) => lobby.id === reaction.message.id);
+
+  if (!lobby) {
+    return;
+  }
 
   if (isCoach || isAdmin) {
     if (reaction.emoji.name === '✅') {
