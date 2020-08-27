@@ -6,6 +6,8 @@ const moment = require('moment');
 
 const express = require('express');
 
+const CronJob = require('cron').CronJob;
+
 // Database stuff
 const Pool = require('pg').Pool;
 const pool = new Pool({
@@ -85,7 +87,85 @@ client.once('ready', async () => {
 
   // await updateUsersTable();
 
+  await scheduleLobbies();
 });
+
+
+// ~~~~~~~~~~~~~~~~ CRON STUFF ~~~~~~~~~~~~~~~~
+
+const scheduledLobbies = [
+  {
+    min: '0',
+    hour: '14',
+    dayOfMonth: '*',
+    month: '*',
+    dayOfWeek: '1',
+    args: ['23', 'EU', 'lobby at 20:00 CEST // 2PM EDT (UNCOACHED)']
+  },
+  {
+    min: '0',
+    hour: '14',
+    dayOfMonth: '*',
+    month: '*',
+    dayOfWeek: '3',
+    args: ['34', 'EU', 'lobby at 20:00 CEST // 2PM EDT']
+  },
+  {
+    min: '0',
+    hour: '14',
+    dayOfMonth: '*',
+    month: '*',
+    dayOfWeek: '2,4,5',
+    args: ['12', 'EU', 'lobby at 20:00 CEST // 2PM EDT']
+  },
+  {
+    min: '0',
+    hour: '14',
+    dayOfMonth: '*',
+    month: '*',
+    dayOfWeek: '0',
+    args: ['234', 'EU', 'lobby at 20:00 CEST // 2PM EDT (UNCOACHED)']
+  },
+
+  {
+    min: '0',
+    hour: '21',
+    dayOfMonth: '*',
+    month: '*',
+    dayOfWeek: '1,3,5,0',
+    args: ['12', 'NA', 'lobby at 9pm EDT']
+  },
+  {
+    min: '1',
+    hour: '21',
+    dayOfMonth: '*',
+    month: '*',
+    dayOfWeek: '3,5,0',
+    args: ['34', 'NA', 'lobby at 9pm EDT']
+  },
+];
+
+const scheduleLobbies = async () => {
+  for (const scheduledLobby of scheduledLobbies) {
+    await scheduleLobby(scheduledLobby);
+  }
+}
+
+const scheduleLobby = async (scheduledLobby) => {
+  // schedule post 4h before
+  const cronStringSignup = `${scheduledLobby.min} ${parseInt(scheduledLobby.hour) - 4} ${scheduledLobby.dayOfMonth} ${scheduledLobby.month} ${scheduledLobby.dayOfWeek}`;
+
+  new CronJob(cronStringSignup, () => {
+    console.log('correct time');
+    postLobby(scheduledLobby.args);
+  }, null, true, 'America/New_York');
+
+  // 30 mins before send lists
+  // at cron time, send out ping
+}
+
+// ~~~~~~~~~~~~~~~~ END CRON STUFF ~~~~~~~~~~~~~~~~
+
 
 const commandForName = {};
 
@@ -240,7 +320,7 @@ const loadPastLobbies = async () => {
   for (const lobby of dbLobbies) {
     lobbies.push(lobby);
 
-    // need to fetch the messages to add them to the
+    // need to fetch the messages to add them to the cache
     try {
       await channel.fetchMessage(lobby.id);
     } catch (err) {
@@ -309,59 +389,65 @@ commandForName['post'] = {
       return msg.channel.send('Sorry, only coaches can manage this.');
     }
 
-    const tiersJoined = args[0];
-    const freeText = args.slice(1).join(' ');
+    await postLobby(args);
+  }
+}
 
-    const tiers = [];
-    for (const tierString of tiersJoined) {
-      const tier = parseInt(tierString);
-      if (isNaN(tier) || tier < 1 || tier > 5) {
-        return msg.channel.send('Incorrect format: \`!post 12345 [free text fields]\`');
-      }
+const postLobby = async (args) => {
+  const tiersJoined = args[0];
+  const freeText = args.slice(1).join(' ');
 
-      tiers.push(queuableRoles[tier]);
+  const tiers = [];
+  for (const tierString of tiersJoined) {
+    const tier = parseInt(tierString);
+    if (isNaN(tier) || tier < 1 || tier > 5) {
+      return;
     }
 
-    const lobby = {
-      coaches: [],
-      fields: [
-        []
-      ],
-      tiers,
-      text: freeText,
-      locked: false
-    };
-
-    const channel = await client.channels.get(process.env.DFZ_LOBBY_CHANNEL);
-
-    const tiersString = tiers.map((tier) => {
-      return `<@&${tier}>`;
-    }).join(' ');
-
-    await channel.send(`**New scheduled lobby!**\nReact to the message below with the number(s) corresponding to the roles you would like to play.\n${tiersString}`);
-
-    const embed = generateEmbed(lobby);
-    const message = await channel.send(embed);
-
-    lobby.id = message.id;
-
-    lobbies.push(lobby);
-
-    await saveLobby({
-      id: message.id,
-      data: lobby
-    });
-
-    await message.react('1️⃣');
-    await message.react('2️⃣');
-    await message.react('3️⃣');
-    await message.react('4️⃣');
-    await message.react('5️⃣');
-    await message.react('📚');
-    await message.react('🗒️');
-    await message.react('✅');
-    await message.react('🔒');
+    tiers.push(queuableRoles[tier]);
   }
+
+  const lobby = {
+    coaches: [],
+    fields: [
+      []
+    ],
+    tiers,
+    text: freeText,
+    locked: false
+  };
+
+  const channel = await client.channels.get(process.env.DFZ_LOBBY_CHANNEL);
+
+  const tiersString = tiers.map((tier) => {
+    return `<@&${tier}>`;
+  }).join(' ');
+
+  await channel.send(`**New scheduled lobby!**\nReact to the message below with the number(s) corresponding to the roles you would like to play.\n${tiersString}`);
+
+  const embed = generateEmbed(lobby);
+  const message = await channel.send(embed);
+
+  lobby.id = message.id;
+
+  lobbies.push(lobby);
+
+  await saveLobby({
+    id: message.id,
+    data: lobby
+  });
+
+  await message.react('1️⃣');
+  await message.react('2️⃣');
+  await message.react('3️⃣');
+  await message.react('4️⃣');
+  await message.react('5️⃣');
+  await message.react('📚');
+  await message.react('🗒️');
+  await message.react('✅');
+  await message.react('🔒');
+
+  return lobby;
 }
 
 
@@ -883,6 +969,10 @@ const generateEmbed = (lobby) => {
 
   embed.addField('Coaches', coachesString || '-');
 
+  if (lobby.id) {
+    embed.setFooter(lobby.id);
+  }
+
   return embed;
 }
 
@@ -988,7 +1078,7 @@ commandForName['answer'] = {
       embed.setColor([193, 109, 255]);
       embed.setDescription(oldEmbed.description);
       embed.setAuthor(oldEmbed.author.name, oldEmbed.author.iconURL);
-      embed.setFooter(oldEmbed.footer.text);
+      embed.setFooter(oldEmbed.footer ? oldEmbed.footer.text : questionMessage.id);
 
       for (const field of oldEmbed.fields) {
         embed.addField(field.name, field.value);
@@ -997,6 +1087,54 @@ commandForName['answer'] = {
       embed.addField(author.nickname || author.user.username, answer);
 
       await questionMessage.edit(embed);
+    }
+  }
+}
+
+// !coach <lobbyid> @coach
+commandForName['coach'] = {
+  execute: async (msg, args) => {
+    if (msg.channel.id !== process.env.DFZ_COACHES_CHANNEL) {
+      return;
+    }
+
+    const lobbyId = args[0];
+    if (!lobbyId) {
+      return;
+    }
+
+    const lobby = lobbies.find((lobby) => lobby.id === lobbyId);
+
+    if (!lobby) {
+      return;
+    }
+
+    const coach = msg.mentions.users.first();
+
+    if (!coach) {
+      return;
+    }
+
+    if (lobby.coaches.includes(coach.id)) {
+      console.log('includes')
+      lobby.coaches = lobby.coaches.filter((c) => c !== coach.id);
+    } else {
+      console.log('push')
+      lobby.coaches.push(coach.id);
+    }
+
+    await saveLobby({
+      id: lobby.id,
+      data: lobby
+    });
+
+    const channel = await client.channels.get(process.env.DFZ_LOBBY_CHANNEL);
+    const message = await channel.fetchMessage(lobby.id);
+
+    if (message) {
+      console.log({channel, message})
+      const embed = generateEmbed(lobby);
+      await message.edit(embed);
     }
   }
 }
