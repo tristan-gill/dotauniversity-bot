@@ -156,7 +156,6 @@ const scheduleLobby = async (scheduledLobby) => {
   const cronStringSignup = `${scheduledLobby.min} ${parseInt(scheduledLobby.hour) - 4} ${scheduledLobby.dayOfMonth} ${scheduledLobby.month} ${scheduledLobby.dayOfWeek}`;
 
   new CronJob(cronStringSignup, () => {
-    console.log('correct time');
     postLobby(scheduledLobby.args);
   }, null, true, 'America/New_York');
 
@@ -610,7 +609,6 @@ client.on('messageReactionAdd', async (reaction, user) => {
         }
       } else {
         // not enough tips
-        console.log('not enough tips');
         dbClient.release();
         return reaction.remove(user);
       }
@@ -633,7 +631,6 @@ client.on('messageReactionAdd', async (reaction, user) => {
 
     // check if this message already has been tipped before
     const previousEmbedId = await getTipByMessageId(reaction.message.id, dbClient);
-    console.log({previousEmbedId})
 
     await createTip(user.id, reaction.message.author.id, reaction.message, previousEmbedId || '', dbClient);
 
@@ -661,6 +658,7 @@ client.on('messageReactionAdd', async (reaction, user) => {
   }
 
   if (isCoach || isAdmin) {
+    console.log(`${user.id} reacted with ${reaction.emoji.name}`);
     if (reaction.emoji.name === '✅') {
       // remind
       // for each group in the post
@@ -749,14 +747,12 @@ client.on('messageReactionAdd', async (reaction, user) => {
   }
 
   if (!tier || !lobby.tiers.includes(tier.id)) {
-    console.log('wrong tier breh')
     return reaction.remove(user);
   }
 
   const positionNumber = emojiNumbers.indexOf(reaction.emoji.name);
 
   if (positionNumber < 1 || positionNumber > 5) {
-    console.log('wrong reaction')
     return reaction.remove(user);
   }
 
@@ -812,7 +808,6 @@ client.on('raw', async (event) => {
     const positionNumber = emojiNumbers.indexOf(data.emoji.name);
 
     if (positionNumber < 1 || positionNumber > 5) {
-      console.log('wrong reaction')
       return;
     }
 
@@ -1092,6 +1087,7 @@ commandForName['answer'] = {
 }
 
 // !coach <lobbyid> @coach
+// toggles the @coach on the lobby
 commandForName['coach'] = {
   execute: async (msg, args) => {
     if (msg.channel.id !== process.env.DFZ_COACHES_CHANNEL) {
@@ -1116,10 +1112,8 @@ commandForName['coach'] = {
     }
 
     if (lobby.coaches.includes(coach.id)) {
-      console.log('includes')
       lobby.coaches = lobby.coaches.filter((c) => c !== coach.id);
     } else {
-      console.log('push')
       lobby.coaches.push(coach.id);
     }
 
@@ -1132,7 +1126,6 @@ commandForName['coach'] = {
     const message = await channel.fetchMessage(lobby.id);
 
     if (message) {
-      console.log({channel, message})
       const embed = generateEmbed(lobby);
       await message.edit(embed);
     }
