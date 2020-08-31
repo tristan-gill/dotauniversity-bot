@@ -387,6 +387,9 @@ commandForName['post'] = {
     if (!isCoach && msg.channel.id !== process.env.DFZ_COACHES_CHANNEL) {
       return msg.channel.send('Sorry, only coaches can manage this.');
     }
+    if (args.includes("tryout")){
+      await postTryout(args);
+    }
 
     await postLobby(args);
   }
@@ -451,8 +454,7 @@ const postLobby = async (args) => {
 
 
 const postTryout = async (args) => {
-//    !post tryout at 6/29/2011 14:52:48 PDT IT TAKES UTC TIME ZONE THEN CONVERTS IT TO ALL THE OTHER TIMES
-  var args = '!post tryout at 6/29/2020 14:52:48 PDT'
+  // Ex: !post tryout at 6/29/2020 14:52:48 PDT
   var dateText = args.split('at ').slice(-1)
   var freeText = args.slice(1).join(' ');
   timezones = ['America/Los_Angeles', 'Europe/Berlin', 'America/New_York'];
