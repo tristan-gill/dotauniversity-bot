@@ -450,6 +450,61 @@ const postLobby = async (args) => {
 }
 
 
+const postTryout = async (args) => {
+//    !post tryout at 6/29/2011 14:52:48 PDT IT TAKES UTC TIME ZONE THEN CONVERTS IT TO ALL THE OTHER TIMES
+  var args = '!post tryout at 6/29/2020 14:52:48 PDT'
+  var dateText = args.split('at ').slice(-1)
+  var freeText = args.slice(1).join(' ');
+  timezones = ['America/Los_Angeles', 'Europe/Berlin', 'America/New_York'];
+  var timeString = '';
+
+  try{
+    var date = new Date(dateText);
+    for (i = 0; i < timezones.length; i++) {
+      timeString += date.toLocaleString("en-US", {timeZone: timezones[i]}) + " " + timezones[i]+"\n";
+    }
+    console.log(timeString);
+  }
+  catch(err){
+    //    send message in channel "Please use this format for the date 6/29/2011 14:52:48 PDT"
+    console.log("Something went wrong" + err)
+  }
+
+  const lobby = {
+    coaches: [],
+    fields: [
+      []
+    ],
+    text: freeText,
+    locked: false
+  };
+
+  const channel = await client.channels.get(process.env.DFZ_TRYOUT_CHANNEL);
+
+  const tryoutString = '<@&$tryouts>'
+
+  await channel.send(`**${tryoutString} Time!**\Hosting tryouts at:\n${timeString}.\nReact to this message if you wanna join\n`);
+
+  const embed = generateEmbed(lobby);
+
+  const message = await channel.send(embed);
+
+  lobby.id = message.id;
+
+  lobbies.push(lobby);
+
+  await saveLobby({
+    id: message.id,
+    data: lobby
+  });
+
+  await message.react('✅');
+  await message.react('🔒');
+
+  return lobby;
+}
+
+
 // ~~~~~~~~~~~~~~~~ TIPS STUFF ~~~~~~~~~~~~~~~~
 
 const defaultTips = 3;
