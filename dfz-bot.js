@@ -140,9 +140,17 @@ const scheduledLobbies = [
     hour: '21',
     dayOfMonth: '*',
     month: '*',
-    dayOfWeek: '3,5,0',
+    dayOfWeek: '3,5',
     args: ['34', 'NA', 'lobby at 9pm EDT']
   },
+  {
+    min: '1',
+    hour: '21',
+    dayOfMonth: '*',
+    month: '*',
+    dayOfWeek: '0',
+    args: ['23', 'NA', 'lobby at 9pm EDT']
+  }
 ];
 
 const scheduleLobbies = async () => {
