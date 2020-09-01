@@ -83,11 +83,11 @@ client.once('ready', async () => {
   lobbies = [];
   console.log('Ready!');
 
-  await loadPastLobbies();
+//  await loadPastLobbies();
 
   // await updateUsersTable();
 
-  await scheduleLobbies();
+//  await scheduleLobbies();
 });
 
 
@@ -460,40 +460,37 @@ const postLobby = async (args) => {
   return lobby;
 }
 
-
+// Ex: !post tryout at 8/31/2020 23:08:48 PDT
 const postTryout = async (args) => {
-  // Ex: !post tryout at 6/29/2020 14:52:48 PDT
-  var dateText = args.split('at ').slice(-1)
-  var freeText = args.slice(1).join(' ');
-  timezones = ['America/Los_Angeles', 'Europe/Berlin', 'America/New_York'];
+  var dateText = args.slice(2).join(' ');
+  //  console.log("dateText: " + dateText);
+  var freeText = args.slice(0).join(' ');
+  var tryoutRole = process.env.TIER_TRYOUT
+  timezones = ['America/Los_Angeles', 'America/New_York', 'Europe/Berlin', 'Asia/Singapore'];
   var timeString = '';
 
-  try{
-    var date = new Date(dateText);
-    for (i = 0; i < timezones.length; i++) {
-      timeString += date.toLocaleString("en-US", {timeZone: timezones[i]}) + " " + timezones[i]+"\n";
-    }
-    console.log(timeString);
+  var date = new Date(dateText);
+  for (i = 0; i < timezones.length; i++) {
+    timeString += "  " + date.toLocaleString("en-US", {timeZone: timezones[i]}) + " " + timezones[i]+"\n";
   }
-  catch(err){
-    //    send message in channel "Please use this format for the date 6/29/2011 14:52:48 PDT"
-    console.log("Something went wrong" + err)
-  }
+  //  console.log(timeString);
+
+  const tiers = [];
+  tiers.push(tryoutRole);
 
   const lobby = {
     coaches: [],
     fields: [
       []
     ],
+    tiers,
     text: freeText,
     locked: false
   };
 
   const channel = await client.channels.get(process.env.DFZ_TRYOUT_CHANNEL);
 
-  const tryoutString = '<@&$tryouts>'
-
-  await channel.send(`**${tryoutString} Time!**\Hosting tryouts at:\n${timeString}.\nReact to this message if you wanna join\n`);
+  await channel.send(`**<@&${tryoutRole}> Time!**\nHosting tryouts at:\n${timeString}\nReact to this message if you wanna join. All regions are free to attend.\nIn dota go to Play Dota > Custom Lobbies > Browse > Lobby Name : DotaU Tryouts > password: ogre`);
 
   const embed = generateEmbed(lobby);
 
@@ -509,6 +506,7 @@ const postTryout = async (args) => {
   });
 
   await message.react('✅');
+  await message.react('📚');
   await message.react('🔒');
 
   return lobby;
