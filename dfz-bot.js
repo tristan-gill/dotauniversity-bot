@@ -21,7 +21,7 @@ express().listen(PORT, () => console.log(`Listening on ${ PORT }`));
 
 const PREFIX = '!';
 
-const queuableRoles = [process.env.COACH, process.env.TIER_ONE, process.env.TIER_TWO, process.env.TIER_THREE, process.env.TIER_FOUR, process.env.TIER_GRAD];
+const queuableRoles = [process.env.COACH, process.env.TIER_ONE, process.env.TIER_TWO, process.env.TIER_THREE, process.env.TIER_FOUR, process.env.TIER_GRAD, process.env.TIER_TRYOUT];
 const emojiNumbers = ['0️⃣', '1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
 const voiceChannels = [process.env.DFZ_VC_1, process.env.DFZ_VC_2, process.env.DFZ_VC_3, process.env.DFZ_VC_4];
 
@@ -83,11 +83,11 @@ client.once('ready', async () => {
   lobbies = [];
   console.log('Ready!');
 
-//  await loadPastLobbies();
+  await loadPastLobbies();
 
   // await updateUsersTable();
 
-//  await scheduleLobbies();
+  await scheduleLobbies();
 });
 
 
@@ -460,6 +460,10 @@ const postLobby = async (args) => {
   return lobby;
 }
 
+function isValidDate(d) {
+  return d instanceof Date && !isNaN(d);
+}
+
 // Ex: !post tryout at 8/31/2020 23:08:48 PDT
 const postTryout = async (args) => {
   var dateText = args.slice(2).join(' ');
@@ -470,6 +474,7 @@ const postTryout = async (args) => {
   var timeString = '';
 
   var date = new Date(dateText);
+
   for (i = 0; i < timezones.length; i++) {
     timeString += "  " + date.toLocaleString("en-US", {timeZone: timezones[i]}) + " " + timezones[i]+"\n";
   }
@@ -490,7 +495,7 @@ const postTryout = async (args) => {
 
   const channel = await client.channels.get(process.env.DFZ_TRYOUT_CHANNEL);
 
-  await channel.send(`**<@&${tryoutRole}> Time!**\nHosting tryouts at:\n${timeString}\nReact to this message if you wanna join. All regions are free to attend.\nIn dota go to Play Dota > Custom Lobbies > Browse > Lobby Name : DotaU Tryouts > password: ogre`);
+  await channel.send(`**<@&${tryoutRole}> Time!**\nHosting tryouts at:\n${timeString}\nReact to the message below if you wanna join. All regions are free to attend.`);
 
   const embed = generateEmbed(lobby);
 
@@ -505,8 +510,9 @@ const postTryout = async (args) => {
     data: lobby
   });
 
-  await message.react('✅');
+  await message.react('✳');
   await message.react('📚');
+  await message.react('🏁');
   await message.react('🔒');
 
   return lobby;
@@ -714,10 +720,34 @@ client.on('messageReactionAdd', async (reaction, user) => {
   }
 
 
+  // Lobby Emote Signups
   const lobby = lobbies.find((lobby) => lobby.id === reaction.message.id);
 
   if (!lobby) {
     return;
+  }
+
+  if (reaction.emoji.name === '✳') {
+      console.log(`Tryout - ${user.id} reacted with ${reaction.emoji.name}`);
+
+      await addToLobby(lobby, user, reaction, tier, 1);
+
+      await saveLobby({
+        id: lobby.id,
+        data: lobby
+      });
+
+      const embed = generateEmbed(lobby);
+      await reaction.message.edit(embed);
+
+      var bigAssMessage = "**Hello and welcome to Dota University!**\n\nIf you didn't know, the aim of Dota U is to be a platform for beginners to have fair and fun games! We offer new player coaching and lobby games that are designed to help you understand and get better at Dota2!\nAs you do your tryouts, a coach will watch your gameplay VS bots for the first 10-15 minutes of the game. The coach will not tell you to do anything so that they do not influence your gameplay. \n\nDuring the match, the coach will assign you into one of 3 beginner tiers:\n  **Tier 1**: No previous MOBA experience, clearly lost, using abilities at random, theoretical knowledge of pulling and other advanced mechanics but rough execution\n  **Tier 2**: Either successful tier 1 or MOBA experience, rough grasp of laning; trading, pulling. can follow up and land skills.\n  **Tier 3**: Has decent understanding of their hero pool, can utilize complex mechanics with those heroes.\n\nBefore the tryout you can set yourself up by doing a few things!\nChange your nickname in Discord to have your region tag in front of your name.  This will make it easy for everyone to know what region you are in.\n*Ex: if you are in NA and your name is AfroPenguin, change your nickname to [NA] AfroPenguin*\n\nAssign yourself a role corresponding to the region\n*Ex: if you are in NA, assign yourself with the NA role.*\n\n**To join the tryout lobby, in dota go to:**\n**Play Dota > Custom Lobbies > Browse > Lobby Name : DotaU Tryouts > password: ogre**\n\nDon't worry too much about the tryouts (This isnt like taking the MCAT)! Just play as you normally would and most importantly, have fun!"
+      await user.send(bigAssMessage);
+
+      return reaction.remove(user);
+   }
+
+  if (!tier || !lobby.tiers.includes(tier.id)) {
+    return reaction.remove(user);
   }
 
   if (isCoach || isAdmin) {
@@ -743,6 +773,12 @@ client.on('messageReactionAdd', async (reaction, user) => {
     } else if (reaction.emoji.name === '🗒️') {
       // print
       await user.send(getPostPrintString(lobby));
+      return reaction.remove(user);
+    } else if (reaction.emoji.name === '🏁') {
+      // print
+      // Get list of people who reacted to the tryout message
+      // find their post in sighups
+      // send all of their signup posts to each of the coaches
       return reaction.remove(user);
     } else if (reaction.emoji.name === '🔒') {
       if (lobby.locked) {
@@ -807,10 +843,6 @@ client.on('messageReactionAdd', async (reaction, user) => {
 
       return reaction.remove(user);
     }
-  }
-
-  if (!tier || !lobby.tiers.includes(tier.id)) {
-    return reaction.remove(user);
   }
 
   const positionNumber = emojiNumbers.indexOf(reaction.emoji.name);
