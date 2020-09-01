@@ -732,11 +732,8 @@ client.on('messageReactionAdd', async (reaction, user) => {
 
     // If the user already signed up
     for (const players of lobby.fields) {
-      console.log(lobby.fields)
-      console.log(players)
       const player = players.find((player) => player.id === user.id);
       if (player) {
-          console.log(player)
           await removeFromLobby(lobby, user, reaction.message);
           await saveLobby({
           id: lobby.id,
@@ -757,7 +754,7 @@ client.on('messageReactionAdd', async (reaction, user) => {
       const embed = generateEmbed(lobby);
       await reaction.message.edit(embed);
 
-      var bigAssMessage = "**Hello and welcome to Dota University!**\n\nIf you didn't know, the aim of Dota U is to be a platform for beginners to have fair and fun games! We offer new player coaching and lobby games that are designed to help you understand and get better at Dota2!\n\nAs you do your tryouts, a coach will watch your gameplay VS bots for the first 10-15 minutes of the game. The coach will not tell you to do anything so that they do not influence your gameplay. \n\nDuring the match, the coach will assign you into one of 3 beginner tiers:\n  **Tier 1**: Clearly lost, using abilities at random, rough execution\n  **Tier 2**: Rough grasp of laning; trading, pulling. can follow up and land skills.\n  **Tier 3**: Has decent understanding of their hero pool, can utilize complex mechanics with those heroes.\n\n**To join the tryout lobby, in dota go to:**\n**Play Dota > Custom Lobbies > Browse > Lobby Name : DotaU Tryouts > password: ogre**\n\nDon't worry too much about the tryouts (This isnt like taking the MCAT)! Just play as you normally would and most importantly, have fun!"
+      var bigAssMessage = "**Hello and welcome to Dota University!**\n\nIf you didn't know, the aim of Dota U is to be a platform for beginners to have fair and fun games! We offer new player coaching and lobby games that are designed to help you understand and get better at Dota2!\n\nAs you do your tryouts, a coach will watch your gameplay VS bots for the first 10-15 minutes of the game. The coach will not tell you to do anything so that they do not influence your gameplay. \n\nDuring the match, the coach will assign you into one of 3 beginner tiers:\n  **Tier 1**: Clearly lost, using abilities at random, rough execution\n  **Tier 2**: Rough grasp of laning; trading, pulling. can follow up and land skills.\n  **Tier 3**: Has decent understanding of their hero pool, can utilize complex mechanics with those heroes.\n\n**To join the tryout lobby, in dota go to:**\n**Play Dota > Custom Lobbies > Browse > Lobby Name : DotaU Tryouts > password: ogre**\n\nDon't worry too much about the tryouts!\nJust play as you normally would and most importantly, have fun!"
       await user.send(bigAssMessage);
 
       return reaction.remove(user);
