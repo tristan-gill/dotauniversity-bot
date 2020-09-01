@@ -740,8 +740,7 @@ client.on('messageReactionAdd', async (reaction, user) => {
       const embed = generateEmbed(lobby);
       await reaction.message.edit(embed);
 
-      var bigAssMessage = "**Hello and welcome to Dota University!**\n\nIf you didn't know, the aim of Dota U is to be a platform for beginners to have fair and fun games! We offer new player coaching and lobby games that are designed to help you understand and get better at Dota2!\nAs you do your tryouts, a coach will watch your gameplay VS bots for the first 10-15 minutes of the game. The coach will not tell you to do anything so that they do not influence your gameplay. \n\nDuring the match, the coach will assign you into one of 3 beginner tiers:\n  **Tier 1**: No previous MOBA experience, clearly lost, using abilities at random, theoretical knowledge of pulling and other advanced mechanics but rough execution\n  **Tier 2**: Either successful tier 1 or MOBA experience, rough grasp of laning; trading, pulling. can follow up and land skills.\n  **Tier 3**: Has decent understanding of their hero pool, can utilize complex mechanics with those heroes.\n\nBefore the tryout you can set yourself up by doing a few things!\nChange your nickname in Discord to have your region tag in front of your name.  This will make it easy for everyone to know what region you are in.\n*Ex: if you are in NA and your name is AfroPenguin, change your nickname to [NA] AfroPenguin*\n\nAssign yourself a role corresponding to the region\n*Ex: if you are in NA, assign yourself with the NA role.*\n\n**To join the tryout lobby, in dota go to:**\n**Play Dota > Custom Lobbies > Browse > Lobby Name : DotaU Tryouts > password: ogre**\n\nDon't worry too much about the tryouts (This isnt like taking the MCAT)! Just play as you normally would and most importantly, have fun!"
-      await user.send(bigAssMessage);
+      await user.send(process.env.bigAssMessage);
 
       return reaction.remove(user);
    }
