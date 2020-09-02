@@ -460,10 +460,6 @@ const postLobby = async (args) => {
   return lobby;
 }
 
-function isValidDate(d) {
-  return d instanceof Date && !isNaN(d);
-}
-
 // Ex: !post tryout at 8/31/2020 23:08:48 PDT
 const postTryout = async (args) => {
   var dateText = args.slice(2).join(' ');
@@ -474,7 +470,13 @@ const postTryout = async (args) => {
   var timeString = '';
 
   var date = new Date(dateText);
-
+  if (date == "Invalid Date"){
+    console.log(date);
+    const internalChannel = await client.channels.get(process.env.DFZ_COACHES_CHANNEL);
+    await internalChannel.send("Invalid Date. Try something like this:```!post tryout at 9/1/2020 15:00 PST\n!post tryout at 9/1/2020 15:00 GMT-0700\n!post tryout at Thu Jan 02 2014 00:00:00 GMT-0600\n```");
+    return;
+  }
+  console.log(date);
   for (i = 0; i < timezones.length; i++) {
     timeString += "  " + date.toLocaleString("en-US", {timeZone: timezones[i]}) + " " + timezones[i]+"\n";
   }
@@ -754,7 +756,7 @@ client.on('messageReactionAdd', async (reaction, user) => {
       const embed = generateEmbed(lobby);
       await reaction.message.edit(embed);
 
-      var bigAssMessage = "**Hello and welcome to Dota University!**\n\nIf you didn't know, the aim of Dota U is to be a platform for beginners to have fair and fun games! We offer new player coaching and lobby games that are designed to help you understand and get better at Dota2!\n\nAs you do your tryouts, a coach will watch your gameplay VS bots for the first 10-15 minutes of the game. The coach will not tell you to do anything so that they do not influence your gameplay. \n\nDuring the match, the coach will assign you into one of 3 beginner tiers:\n  **Tier 1**: Clearly lost, using abilities at random, rough execution\n  **Tier 2**: Rough grasp of laning; trading, pulling. can follow up and land skills.\n  **Tier 3**: Has decent understanding of their hero pool, can utilize complex mechanics with those heroes.\n\n**To join the tryout lobby, in dota go to:**\n**Play Dota > Custom Lobbies > Browse > Lobby Name : DotaU Tryouts > password: ogre**\n\nDon't worry too much about the tryouts!\nJust play as you normally would and most importantly, have fun!"
+      var bigAssMessage = "**Hello and welcome to Dota University!**\n\nIf you didn't know, the aim of Dota U is to be a platform for beginners to have fair and fun games! We offer new player coaching and lobby games that are designed to help you understand and get better at Dota2!\n\nAs you do your tryouts, a coach will watch your gameplay VS bots for the first 10-15 minutes of the game and will assign you into one of the 3 beginner tiers. The coach will not tell you to do anything so that they do not influence your gameplay. \n\nIn the meantime, you can set yourself up by doing a few things!\nChange your nickname in Discord to have your region tag in front of your name.  This will make it easy for everyone to know what region you are in.\n*Ex: if you are in NA and your name is AfroPenguin, change your nickname to [NA] AfroPenguin*\n\nAssign yourself a role corresponding to the region\n*Ex: if you are in NA, assign yourself with the NA role.*\n\n**To join the tryout lobby, in dota go to:**\n**Play Dota > Custom Lobbies > Browse > Lobby Name : DotaU Tryouts > password: ogre**\nMake sure to join the voice channel! https://discord.gg/49CV692\n\nDon't worry too much about the tryouts!\nJust play as you normally would and most importantly, have fun!"
       await user.send(bigAssMessage);
 
       return reaction.remove(user);
@@ -791,6 +793,13 @@ client.on('messageReactionAdd', async (reaction, user) => {
     } else if (reaction.emoji.name === '🏁') {
       // print
       // Get list of people who reacted to the tryout message
+      for (const players of lobby.fields) {
+        const player = players.find((player) => player.id === user.id);
+        if (player) {
+//
+        return reaction.remove(user);
+        }
+      }
       // find their post in sighups
       // send all of their signup posts to each of the coaches
       return reaction.remove(user);
