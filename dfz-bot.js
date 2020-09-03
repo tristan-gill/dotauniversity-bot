@@ -92,7 +92,13 @@ client.once('ready', async () => {
 
 
 // ~~~~~~~~~~~~~~~~ CRON STUFF ~~~~~~~~~~~~~~~~
-
+// 1 - Monday
+// 2 - Tuesday
+// 3 - Wednesday
+// 4 - Thursday
+// 5 - Friday
+// 6 - Saturday
+// 0 - Sunday
 const scheduledLobbies = [
   {
     min: '0',
@@ -115,7 +121,8 @@ const scheduledLobbies = [
     hour: '14',
     dayOfMonth: '*',
     month: '*',
-    dayOfWeek: '2,4,5',
+    // dayOfWeek: '2,4,5',
+    dayOfWeek: '2,4',
     args: ['12', 'EU', 'lobby at 20:00 CEST // 2PM EDT']
   },
   {
@@ -132,7 +139,8 @@ const scheduledLobbies = [
     hour: '21',
     dayOfMonth: '*',
     month: '*',
-    dayOfWeek: '1,3,5,0',
+    // dayOfWeek: '1,3,5,0',
+    dayOfWeek: '1,3,0',
     args: ['12', 'NA', 'lobby at 9pm EDT']
   },
   {
@@ -140,7 +148,8 @@ const scheduledLobbies = [
     hour: '21',
     dayOfMonth: '*',
     month: '*',
-    dayOfWeek: '3,5',
+    // dayOfWeek: '3,5',
+    dayOfWeek: '3',
     args: ['34', 'NA', 'lobby at 9pm EDT']
   },
   {
