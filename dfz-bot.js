@@ -516,7 +516,7 @@ const postTryout = async (args) => {
 
     await message.react('✳');
     await message.react('📚');
-    await message.react('🏁');
+    //    await message.react('🏁');
     await message.react('🔒');
 
     return lobby;
@@ -798,23 +798,27 @@ client.on('messageReactionAdd', async (reaction, user) => {
             const signUpChannel = await client.channels.get(process.env.DFZ_SIGNUP_CHANNEL);
             const internalChannel = await client.channels.get(process.env.DFZ_COACHES_CHANNEL);
 
-            var playerInfo = ""
+            var playerInfoString = ""
+
             for (const players of lobby.fields) {
                 const player = players.find((player) => player.id === user.id);
                 if (player) {
+                    //                    get their info from the signup channel
                     signUpChannel.fetchMessages().then(async messages => {
                         for (const message of messages.array().reverse()) {
-                            console.log(message.author.id);
-                            console.log(player.id);
-                            if (message.author.id == player.id && message.content.includes("!apply")) {
-                                playerInfo += message.author.username + "/n" + message.content + "/n"
-                            };
-                        };
-                    });
-                    await internalChannel.send(playerInfo);
-                    return reaction.remove(user);
+                            if (parseInt(message.author.id) == parseInt(player.id) && message.content.includes("!apply")) {
+                                //                            add their info to a big string
+                                var stuff = message.content.split(",")[1].trim();
+                                playerInfoString += message.author.username + "\n" + message.content + "\n" + `https://www.dotabuff.com/players/${stuff}\nTier 1/2/3/4 - `;
+                                console.log(playerInfoString);
+                                //                                Fix this: get all player info and send it one time to each of the coaches in lobby.coaches
+                                //                                await internalChannel.send(playerInfoString);
+                            }
+                        }
+                    })
                 }
             }
+            return reaction.remove(user);
             // find their post in sighups
             // send all of their signup posts to each of the coaches
             return reaction.remove(user);
