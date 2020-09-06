@@ -11,7 +11,8 @@ const CronJob = require('cron').CronJob;
 // Database stuff
 const Pool = require('pg').Pool;
 const pool = new Pool({
-  connectionString: process.env.HEROKU_POSTGRESQL_ONYX_URL
+  connectionString: process.env.HEROKU_POSTGRESQL_ONYX_URL,
+  ssl: true
 });
 
 // express stuff to keep heroku happy
