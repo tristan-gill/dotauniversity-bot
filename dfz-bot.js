@@ -815,7 +815,7 @@ client.on('messageReactionAdd', async (reaction, user) => {
                     })
                 }
             }
-            await internalChannel.send(playerInfoString);
+            await user.send(playerInfoString);
             return reaction.remove(user);
         } else if (reaction.emoji.name === '🔒') {
             if (lobby.locked) {
