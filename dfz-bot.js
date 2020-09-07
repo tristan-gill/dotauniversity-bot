@@ -471,6 +471,7 @@ const postTryout = async (args) => {
   let timeString = '';
 
   const date = new Date(dateText);
+  console.log(date);
   if (date == "Invalid Date") {
     console.log(date);
     const internalChannel = await client.channels.get(process.env.DFZ_COACHES_CHANNEL);
@@ -517,7 +518,7 @@ const postTryout = async (args) => {
 
   await message.react('✳');
   await message.react('📚');
-  await message.react('🏁');
+//  await message.react('🏁');
   await message.react('🔒');
 
   return lobby;
