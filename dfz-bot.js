@@ -463,14 +463,14 @@ const postLobby = async (args) => {
 
 // Ex: !post tryout at 8/31/2020 23:08:48 PDT
 const postTryout = async (args) => {
-  var dateText = args.slice(2).join(' ');
+  const dateText = args.slice(2).join(' ');
   //  console.log("dateText: " + dateText);
-  var freeText = args.slice(0).join(' ');
-  var tryoutRole = process.env.TIER_TRYOUT
+  const freeText = args.slice(0).join(' ');
+  const tryoutRole = process.env.TIER_TRYOUT
   timezones = ['America/Los_Angeles', 'America/New_York', 'Europe/Berlin', 'Asia/Singapore'];
-  var timeString = '';
+  let timeString = '';
 
-  var date = new Date(dateText);
+  const date = new Date(dateText);
   if (date == "Invalid Date") {
     console.log(date);
     const internalChannel = await client.channels.get(process.env.DFZ_COACHES_CHANNEL);
