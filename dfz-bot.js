@@ -759,7 +759,7 @@ client.on('messageReactionAdd', async (reaction, user) => {
     const embed = generateEmbed(lobby);
     await reaction.message.edit(embed);
 
-    var bigAssMessage = "**Hello and Welcome to Dota University!**\n\nIf you didn't know, the aim of Dota U is to be a platform for beginners to have fair and fun games! We offer new player coaching and lobby games that are designed to help you understand and get better at Dota2!\n\nAs you do your tryouts, a coach will watch your gameplay VS bots for the first 10-15 minutes of the game and will assign you into one of the 3 beginner tiers. The coach will not tell you to do anything so that they do not influence your gameplay. \n\nIn the meantime, Change your nickname in Discord to have your region tag in front of your name.  This will make it easy for everyone to know what region you are in.\n*Ex: if you are in NA and your name is AfroPenguin, change your nickname to [NA] AfroPenguin*\n\n**To join the tryout lobby, in dota go to:**\n**Play Dota > Custom Lobbies > Browse > Server: Us East> Lobby Name : DotaU Tryouts > password: ogre**\n\nMake sure to join the voice channel!\nhttps://discord.gg/49CV692\n\nDon't worry too much about the tryouts!\nJust play as you normally would and most importantly, have fun!"
+    const bigAssMessage = "**Hello and Welcome to Dota University!**\n\nIf you didn't know, the aim of Dota U is to be a platform for beginners to have fair and fun games! We offer new player coaching and lobby games that are designed to help you understand and get better at Dota2!\n\nAs you do your tryouts, a coach will watch your gameplay VS bots for the first 10-15 minutes of the game and will assign you into one of the 3 beginner tiers. The coach will not tell you to do anything so that they do not influence your gameplay. \n\nIn the meantime, Change your nickname in Discord to have your region tag in front of your name.  This will make it easy for everyone to know what region you are in.\n*Ex: if you are in NA and your name is AfroPenguin, change your nickname to [NA] AfroPenguin*\n\n**To join the tryout lobby, in dota go to:**\n**Play Dota > Custom Lobbies > Browse > Server: Us East> Lobby Name : DotaU Tryouts > password: ogre**\n\nMake sure to join the voice channel!\nhttps://discord.gg/49CV692\n\nDon't worry too much about the tryouts!\nJust play as you normally would and most importantly, have fun!"
     await user.send(bigAssMessage);
 
     return reaction.remove(user);
@@ -799,7 +799,7 @@ client.on('messageReactionAdd', async (reaction, user) => {
       const signUpChannel = await client.channels.get(process.env.DFZ_SIGNUP_CHANNEL);
       const internalChannel = await client.channels.get(process.env.DFZ_COACHES_CHANNEL);
 
-      var playerInfoString = ""
+      let playerInfoString = ""
 
       for (const players of lobby.fields) {
         const player = players.find((player) => player.id === user.id);
@@ -809,7 +809,7 @@ client.on('messageReactionAdd', async (reaction, user) => {
             for (const message of messages.array().reverse()) {
               if (parseInt(message.author.id) == parseInt(player.id) && message.content.includes("!apply")) {
                 //                            add their info to a big string
-                var stuff = message.content.split(",")[1].trim();
+                const stuff = message.content.split(",")[1].trim();
                 playerInfoString += message.author.username + "\n" + message.content + "\n" + `https://www.dotabuff.com/players/${stuff}\nTier 1/2/3/4 - `;
               }
             }
