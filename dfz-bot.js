@@ -886,6 +886,10 @@ client.on('messageReactionAdd', async (reaction, user) => {
     }
   }
 
+  if (!tier || !lobby.tiers.includes(tier.id)) {
+    return reaction.remove(user);
+  }
+
   const positionNumber = emojiNumbers.indexOf(reaction.emoji.name);
 
   if (positionNumber < 1 || positionNumber > 5) {
