@@ -21,7 +21,7 @@ express().listen(PORT, () => console.log(`Listening on ${ PORT }`));
 
 const PREFIX = '!';
 
-const queuableRoles = [process.env.COACH, process.env.TIER_ONE, process.env.TIER_TWO, process.env.TIER_THREE, process.env.TIER_FOUR, process.env.TIER_GRAD];
+const queuableRoles = [process.env.COACH, process.env.TIER_ONE, process.env.TIER_TWO, process.env.TIER_THREE, process.env.TIER_FOUR, process.env.TIER_GRAD, process.env.TIER_TRYOUT];
 const emojiNumbers = ['0️⃣', '1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
 const voiceChannels = [process.env.DFZ_VC_1, process.env.DFZ_VC_2, process.env.DFZ_VC_3, process.env.DFZ_VC_4];
 
@@ -92,15 +92,8 @@ client.once('ready', async () => {
 
 
 // ~~~~~~~~~~~~~~~~ CRON STUFF ~~~~~~~~~~~~~~~~
-// 1 - Monday
-// 2 - Tuesday
-// 3 - Wednesday
-// 4 - Thursday
-// 5 - Friday
-// 6 - Saturday
-// 0 - Sunday
-const scheduledLobbies = [
-  {
+
+const scheduledLobbies = [{
     min: '0',
     hour: '14',
     dayOfMonth: '*',
@@ -121,8 +114,7 @@ const scheduledLobbies = [
     hour: '14',
     dayOfMonth: '*',
     month: '*',
-    // dayOfWeek: '2,4,5',
-    dayOfWeek: '2,4',
+    dayOfWeek: '2,4,5',
     args: ['12', 'EU', 'lobby at 20:00 CEST // 2PM EDT']
   },
   {
@@ -139,8 +131,7 @@ const scheduledLobbies = [
     hour: '21',
     dayOfMonth: '*',
     month: '*',
-    // dayOfWeek: '1,3,5,0',
-    dayOfWeek: '1,3,0',
+    dayOfWeek: '1,3,5,0',
     args: ['12', 'NA', 'lobby at 9pm EDT']
   },
   {
@@ -148,8 +139,7 @@ const scheduledLobbies = [
     hour: '21',
     dayOfMonth: '*',
     month: '*',
-    // dayOfWeek: '3,5',
-    dayOfWeek: '3',
+    dayOfWeek: '3,5',
     args: ['34', 'NA', 'lobby at 9pm EDT']
   },
   {
@@ -328,7 +318,8 @@ client.on('guildMemberAdd', async (member) => {
 
 // lobby database commands
 const loadPastLobbies = async () => {
-  const channel = await client.channels.get(process.env.DFZ_LOBBY_CHANNEL);
+  const lobbyChannel = await client.channels.get(process.env.DFZ_LOBBY_CHANNEL);
+  const tryoutChannel = await client.channels.get(process.env.DFZ_TRYOUT_CHANNEL);
 
   // Get the saved lobbies from the database
   const dbLobbies = await getLobbies();
@@ -338,9 +329,15 @@ const loadPastLobbies = async () => {
 
     // need to fetch the messages to add them to the cache
     try {
-      await channel.fetchMessage(lobby.id);
+      if (lobby.type === 'beginner') {
+        await lobbyChannel.fetchMessage(lobby.id);
+      } else if (lobby.type === 'tryout') {
+        await tryoutChannel.fetchMessage(lobby.id);
+      }
     } catch (err) {
-      console.log({err});
+      console.log({
+        err
+      });
     }
   }
 }
@@ -358,7 +355,7 @@ const saveLobby = async (lobby) => {
 }
 
 const getLobbies = async () => {
-  const query = 'select data from lobbies;';
+  const query = 'select data from lobbies where deleted_at is null;';
 
   const response = await pool.query(query);
 
@@ -368,7 +365,7 @@ const getLobbies = async () => {
 }
 
 const deleteLobby = async (messageId) => {
-  const query = `delete from lobbies where id = '${messageId}';`;
+  const query = `update lobbies set deleted_at = now() where id = '${messageId}';`;
   const response = await pool.query(query);
 
   lobbies = lobbies.filter((lobby) => {
@@ -379,6 +376,7 @@ const deleteLobby = async (messageId) => {
 
 /*
 lobby = {
+  type: '',
   fields: [[]], // an array of player object arrays
   tiers: [], // array of ints corresponding to tiers
   text: '', // a string for the lobby title
@@ -404,6 +402,9 @@ commandForName['post'] = {
     if (!isCoach && msg.channel.id !== process.env.DFZ_COACHES_CHANNEL) {
       return msg.channel.send('Sorry, only coaches can manage this.');
     }
+    if (args.includes("tryout")) {
+      await postTryout(args);
+    }
 
     await postLobby(args);
   }
@@ -424,6 +425,7 @@ const postLobby = async (args) => {
   }
 
   const lobby = {
+    type: 'beginner',
     coaches: [],
     fields: [
       []
@@ -461,6 +463,68 @@ const postLobby = async (args) => {
   await message.react('📚');
   await message.react('🗒️');
   await message.react('✅');
+  await message.react('🔒');
+
+  return lobby;
+}
+
+// Ex: !post tryout at 8/31/2020 23:08:48 PDT
+const postTryout = async (args) => {
+  const dateText = args.slice(2).join(' ');
+  const freeText = args.slice(0).join(' ');
+
+  const tryoutRole = process.env.TIER_TRYOUT
+  const timezones = ['America/Los_Angeles', 'America/New_York', 'Europe/Berlin', 'Asia/Singapore'];
+  let timeString = '';
+
+  const date = new Date(dateText);
+  if (date == "Invalid Date") {
+    console.log(date);
+    const internalChannel = await client.channels.get(process.env.DFZ_COACHES_CHANNEL);
+    await internalChannel.send("Invalid Date. Try something like this:```!post tryout at 9/1/2020 15:00 PST\n!post tryout at 9/1/2020 15:00 GMT-0700\n!post tryout at Thu Jan 02 2014 00:00:00 GMT-0600\n```");
+    return;
+  }
+  console.log(date);
+  for (i = 0; i < timezones.length; i++) {
+    timeString += "  " + date.toLocaleString("en-US", {
+      timeZone: timezones[i]
+    }) + " " + timezones[i] + "\n";
+  }
+
+  const tiers = [];
+  tiers.push(tryoutRole);
+
+  const lobby = {
+    type: 'tryout',
+    coaches: [],
+    fields: [
+      []
+    ],
+    tiers,
+    text: freeText,
+    locked: false
+  };
+
+  const channel = await client.channels.get(process.env.DFZ_TRYOUT_CHANNEL);
+
+  await channel.send(`**<@&${tryoutRole}> Time!**\nHosting tryouts at:\n${timeString}\nReact with ✳ to the message below if you wanna join. All regions are free to attend.\n`);
+
+  const embed = generateEmbed(lobby);
+
+  const message = await channel.send(embed);
+
+  lobby.id = message.id;
+
+  lobbies.push(lobby);
+
+  await saveLobby({
+    id: message.id,
+    data: lobby
+  });
+
+  await message.react('✳');
+  await message.react('📚');
+//  await message.react('🏁');
   await message.react('🔒');
 
   return lobby;
@@ -668,10 +732,44 @@ client.on('messageReactionAdd', async (reaction, user) => {
   }
 
 
+  // Lobby Emote Signups
   const lobby = lobbies.find((lobby) => lobby.id === reaction.message.id);
 
   if (!lobby) {
     return;
+  }
+
+  if (reaction.emoji.name === '✳') {
+    console.log(`Tryout - ${user.id} reacted with ${reaction.emoji.name}`);
+
+    // If the user already signed up
+    for (const players of lobby.fields) {
+      const player = players.find((player) => player.id === user.id);
+      if (player) {
+        await removeFromLobby(lobby, user, reaction.message);
+        await saveLobby({
+          id: lobby.id,
+          data: lobby
+        });
+        return reaction.remove(user);
+      }
+    }
+
+    // if they didnt sign up add them to lobby
+    await addToLobby(lobby, user, reaction, tier, 1);
+
+    await saveLobby({
+      id: lobby.id,
+      data: lobby
+    });
+
+    const embed = generateEmbed(lobby);
+    await reaction.message.edit(embed);
+
+    const bigAssMessage = "**Hello and Welcome to Dota University!**\n\nIf you didn't know, the aim of Dota U is to be a platform for beginners to have fair and fun games! We offer new player coaching and lobby games that are designed to help you understand and get better at Dota2!\n\nAs you do your tryouts, a coach will watch your gameplay VS bots for the first 10-15 minutes of the game and will assign you into one of the 3 beginner tiers. The coach will not tell you to do anything so that they do not influence your gameplay. \n\nIn the meantime, Change your nickname in Discord to have your region tag in front of your name.  This will make it easy for everyone to know what region you are in.\n*Ex: if you are in NA and your name is AfroPenguin, change your nickname to [NA] AfroPenguin*\n\n**To join the tryout lobby, in dota go to:**\n**Play Dota > Custom Lobbies > Browse > Server: Us East> Lobby Name : DotaU Tryouts > password: ogre**\n\nMake sure to join the voice channel!\nhttps://discord.gg/49CV692\n\nDon't worry too much about the tryouts!\nJust play as you normally would and most importantly, have fun!"
+    await user.send(bigAssMessage);
+
+    return reaction.remove(user);
   }
 
   if (isCoach || isAdmin) {
@@ -698,9 +796,34 @@ client.on('messageReactionAdd', async (reaction, user) => {
       // print
       await user.send(getPostPrintString(lobby));
       return reaction.remove(user);
+    } else if (reaction.emoji.name === '🏁') {
+      // print
+      // Get list of people who reacted to the tryout message
+      const signUpChannel = await client.channels.get(process.env.DFZ_SIGNUP_CHANNEL);
+      const internalChannel = await client.channels.get(process.env.DFZ_COACHES_CHANNEL);
+
+      let playerInfoString = ""
+
+      for (const players of lobby.fields) {
+        const player = players.find((player) => player.id === user.id);
+        if (player) {
+          // get their info from the signup channel
+          await signUpChannel.fetchMessages().then(async messages => {
+            for (const message of messages.array().reverse()) {
+              if (parseInt(message.author.id) == parseInt(player.id) && message.content.includes("!apply")) {
+                //                            add their info to a big string
+                const stuff = message.content.split(",")[1].trim();
+                playerInfoString += message.author.username + "\n" + message.content + "\n" + `https://www.dotabuff.com/players/${stuff}\nTier 1/2/3/4 - `;
+              }
+            }
+          })
+        }
+      }
+      await user.send(playerInfoString);
+      return reaction.remove(user);
     } else if (reaction.emoji.name === '🔒') {
       if (lobby.locked) {
-       // do nothing, no unlocking
+        // do nothing, no unlocking
       } else {
         // lock
         lobby.locked = !lobby.locked;
@@ -763,10 +886,6 @@ client.on('messageReactionAdd', async (reaction, user) => {
     }
   }
 
-  if (!tier || !lobby.tiers.includes(tier.id)) {
-    return reaction.remove(user);
-  }
-
   const positionNumber = emojiNumbers.indexOf(reaction.emoji.name);
 
   if (positionNumber < 1 || positionNumber > 5) {
@@ -807,7 +926,9 @@ client.on('messageReactionAdd', async (reaction, user) => {
 // no nice event handler for reaction removal, raw looks at all discord events
 client.on('raw', async (event) => {
   if (event.t === 'MESSAGE_REACTION_REMOVE') {
-    const { d: data } = event;
+    const {
+      d: data
+    } = event;
 
     const user = client.users.get(data.user_id);
 
@@ -933,7 +1054,9 @@ const removeFromLobby = async (lobby, user, message) => {
 
   const newFields = [];
   if (allPlayers.length === 0) {
-    lobby.fields = [[]];
+    lobby.fields = [
+      []
+    ];
   } else {
     for (let i = 0; i < allPlayers.length; i += 10) {
       newFields.push(allPlayers.slice(i, i + 10));
@@ -1166,11 +1289,11 @@ const avatarUrl = (userId, avatarString) => {
   return `https://cdn.discordapp.com/avatars/${userId}/${avatarString}.png`
 }
 
-function isOwner (userId) {
+function isOwner(userId) {
   return userId === process.env.OWNER_DISCORD_ID;
 }
 
-function isWatchingChannel (discord_id) {
+function isWatchingChannel(discord_id) {
   return (
     process.env.DFZ_LOBBY_CHANNEL === discord_id ||
     process.env.DFZ_COACHES_CHANNEL === discord_id
