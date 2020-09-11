@@ -318,7 +318,8 @@ client.on('guildMemberAdd', async (member) => {
 
 // lobby database commands
 const loadPastLobbies = async () => {
-  const channel = await client.channels.get(process.env.DFZ_LOBBY_CHANNEL);
+  const lobbyChannel = await client.channels.get(process.env.DFZ_LOBBY_CHANNEL);
+  const tryoutChannel = await client.channels.get(process.env.DFZ_TRYOUT_CHANNEL);
 
   // Get the saved lobbies from the database
   const dbLobbies = await getLobbies();
@@ -328,7 +329,11 @@ const loadPastLobbies = async () => {
 
     // need to fetch the messages to add them to the cache
     try {
-      await channel.fetchMessage(lobby.id);
+      if (lobby.type === 'beginner') {
+        await lobbyChannel.fetchMessage(lobby.id);
+      } else if (lobby.type === 'tryout') {
+        await tryoutChannel.fetchMessage(lobby.id);
+      }
     } catch (err) {
       console.log({
         err
@@ -350,7 +355,7 @@ const saveLobby = async (lobby) => {
 }
 
 const getLobbies = async () => {
-  const query = 'select data from lobbies;';
+  const query = 'select data from lobbies where deleted_at is null;';
 
   const response = await pool.query(query);
 
@@ -360,7 +365,7 @@ const getLobbies = async () => {
 }
 
 const deleteLobby = async (messageId) => {
-  const query = `delete from lobbies where id = '${messageId}';`;
+  const query = `update lobbies set deleted_at = now() where id = '${messageId}';`;
   const response = await pool.query(query);
 
   lobbies = lobbies.filter((lobby) => {
@@ -371,6 +376,7 @@ const deleteLobby = async (messageId) => {
 
 /*
 lobby = {
+  type: '',
   fields: [[]], // an array of player object arrays
   tiers: [], // array of ints corresponding to tiers
   text: '', // a string for the lobby title
@@ -419,6 +425,7 @@ const postLobby = async (args) => {
   }
 
   const lobby = {
+    type: 'beginner',
     coaches: [],
     fields: [
       []
@@ -464,14 +471,13 @@ const postLobby = async (args) => {
 // Ex: !post tryout at 8/31/2020 23:08:48 PDT
 const postTryout = async (args) => {
   const dateText = args.slice(2).join(' ');
-  //  console.log("dateText: " + dateText);
   const freeText = args.slice(0).join(' ');
+
   const tryoutRole = process.env.TIER_TRYOUT
-  timezones = ['America/Los_Angeles', 'America/New_York', 'Europe/Berlin', 'Asia/Singapore'];
+  const timezones = ['America/Los_Angeles', 'America/New_York', 'Europe/Berlin', 'Asia/Singapore'];
   let timeString = '';
 
   const date = new Date(dateText);
-  console.log(date);
   if (date == "Invalid Date") {
     console.log(date);
     const internalChannel = await client.channels.get(process.env.DFZ_COACHES_CHANNEL);
@@ -484,12 +490,12 @@ const postTryout = async (args) => {
       timeZone: timezones[i]
     }) + " " + timezones[i] + "\n";
   }
-  //  console.log(timeString);
 
   const tiers = [];
   tiers.push(tryoutRole);
 
   const lobby = {
+    type: 'tryout',
     coaches: [],
     fields: [
       []
@@ -763,10 +769,6 @@ client.on('messageReactionAdd', async (reaction, user) => {
     const bigAssMessage = "**Hello and Welcome to Dota University!**\n\nIf you didn't know, the aim of Dota U is to be a platform for beginners to have fair and fun games! We offer new player coaching and lobby games that are designed to help you understand and get better at Dota2!\n\nAs you do your tryouts, a coach will watch your gameplay VS bots for the first 10-15 minutes of the game and will assign you into one of the 3 beginner tiers. The coach will not tell you to do anything so that they do not influence your gameplay. \n\nIn the meantime, Change your nickname in Discord to have your region tag in front of your name.  This will make it easy for everyone to know what region you are in.\n*Ex: if you are in NA and your name is AfroPenguin, change your nickname to [NA] AfroPenguin*\n\n**To join the tryout lobby, in dota go to:**\n**Play Dota > Custom Lobbies > Browse > Server: Us East> Lobby Name : DotaU Tryouts > password: ogre**\n\nMake sure to join the voice channel!\nhttps://discord.gg/49CV692\n\nDon't worry too much about the tryouts!\nJust play as you normally would and most importantly, have fun!"
     await user.send(bigAssMessage);
 
-    return reaction.remove(user);
-  }
-
-  if (!tier || !lobby.tiers.includes(tier.id)) {
     return reaction.remove(user);
   }
 
