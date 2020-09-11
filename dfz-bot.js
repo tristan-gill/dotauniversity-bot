@@ -22,9 +22,9 @@ const PREFIX = '!';
 
 const queuableRoles = [process.env.COACH, process.env.TIER_ONE, process.env.TIER_TWO, process.env.TIER_THREE, process.env.TIER_FOUR, process.env.TIER_GRAD, process.env.TIER_TRYOUT];
 const emojiNumbers = ['0️⃣', '1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
-const voiceChannels = [process.env.DFZ_VC_1, process.env.DFZ_VC_2, process.env.DFZ_VC_3, process.env.DFZ_VC_4];
+const voiceChannels = [process.env.DOTAU_VC_1, process.env.DOTAU_VC_2, process.env.DOTAU_VC_3, process.env.DOTAU_VC_4];
 
-const questionAnswerableIds = [process.env.COACH, process.env.DFZ_ADMIN, process.env.DFZ_QA_CONTRIBUTOR];
+const questionAnswerableIds = [process.env.COACH, process.env.DOTAU_ADMIN, process.env.DOTAU_QA_CONTRIBUTOR];
 
 // channels that the bot will show the tip message in
 /*
@@ -271,7 +271,7 @@ const rolesMap = {
   "630697798022463497": "731171810757967974",
   // bota
   "629826340379557912": null,
-  //dfz
+  //DOTAU
   "686308071194230818": null,
   // mango
   "631428023916167198": null,
@@ -317,8 +317,8 @@ client.on('guildMemberAdd', async (member) => {
 
 // lobby database commands
 const loadPastLobbies = async () => {
-  const lobbyChannel = await client.channels.get(process.env.DFZ_LOBBY_CHANNEL);
-  const tryoutChannel = await client.channels.get(process.env.DFZ_TRYOUT_CHANNEL);
+  const lobbyChannel = await client.channels.get(process.env.DOTAU_LOBBY_CHANNEL);
+  const tryoutChannel = await client.channels.get(process.env.DOTAU_TRYOUT_CHANNEL);
 
   // Get the saved lobbies from the database
   const dbLobbies = await getLobbies();
@@ -398,7 +398,7 @@ commandForName['post'] = {
     }
 
     const isCoach = msg.member.roles.some((role) => role.id === process.env.COACH);
-    if (!isCoach && msg.channel.id !== process.env.DFZ_COACHES_CHANNEL) {
+    if (!isCoach && msg.channel.id !== process.env.DOTAU_COACHES_CHANNEL) {
       return msg.channel.send('Sorry, only coaches can manage this.');
     }
     if (args.includes("tryout")) {
@@ -434,7 +434,7 @@ const postLobby = async (args) => {
     locked: false
   };
 
-  const channel = await client.channels.get(process.env.DFZ_LOBBY_CHANNEL);
+  const channel = await client.channels.get(process.env.DOTAU_LOBBY_CHANNEL);
 
   const tiersString = tiers.map((tier) => {
     return `<@&${tier}>`;
@@ -479,7 +479,7 @@ const postTryout = async (args) => {
   const date = new Date(dateText);
   if (date == "Invalid Date") {
     console.log(date);
-    const internalChannel = await client.channels.get(process.env.DFZ_COACHES_CHANNEL);
+    const internalChannel = await client.channels.get(process.env.DOTAU_COACHES_CHANNEL);
     await internalChannel.send("Invalid Date. Try something like this:```!post tryout at 9/1/2020 15:00 PST\n!post tryout at 9/1/2020 15:00 GMT-0700\n!post tryout at Thu Jan 02 2014 00:00:00 GMT-0600\n```");
     return;
   }
@@ -504,7 +504,7 @@ const postTryout = async (args) => {
     locked: false
   };
 
-  const channel = await client.channels.get(process.env.DFZ_TRYOUT_CHANNEL);
+  const channel = await client.channels.get(process.env.DOTAU_TRYOUT_CHANNEL);
 
   await channel.send(`**<@&${tryoutRole}> Time!**\nHosting tryouts at:\n${timeString}\nReact with ✳ to the message below if you wanna join. All regions are free to attend.\n`);
 
@@ -658,7 +658,7 @@ client.on('messageReactionAdd', async (reaction, user) => {
 
   // if is a coach
   const isCoach = guildUser.roles.some((role) => role.id === process.env.COACH);
-  const isAdmin = guildUser.roles.some((role) => role.id === process.env.DFZ_ADMIN);
+  const isAdmin = guildUser.roles.some((role) => role.id === process.env.DOTAU_ADMIN);
 
 
   // tip handling
@@ -798,8 +798,8 @@ client.on('messageReactionAdd', async (reaction, user) => {
     } else if (reaction.emoji.name === '🏁') {
       // print
       // Get list of people who reacted to the tryout message
-      const signUpChannel = await client.channels.get(process.env.DFZ_SIGNUP_CHANNEL);
-      const internalChannel = await client.channels.get(process.env.DFZ_COACHES_CHANNEL);
+      const signUpChannel = await client.channels.get(process.env.DOTAU_SIGNUP_CHANNEL);
+      const internalChannel = await client.channels.get(process.env.DOTAU_COACHES_CHANNEL);
 
       let playerInfoString = ""
 
@@ -941,7 +941,7 @@ client.on('raw', async (event) => {
       return;
     }
 
-    const message = await client.channels.get(process.env.DFZ_LOBBY_CHANNEL).fetchMessage(data.message_id);
+    const message = await client.channels.get(process.env.DOTAU_LOBBY_CHANNEL).fetchMessage(data.message_id);
     const positionNumber = emojiNumbers.indexOf(data.emoji.name);
 
     if (positionNumber < 1 || positionNumber > 5) {
@@ -1161,17 +1161,17 @@ const getPostPrintString = (lobby) => {
 // !ask Blah blah blah blah
 commandForName['ask'] = {
   execute: async (msg, args) => {
-    const guild = await client.guilds.get(process.env.DFZ_GUILD);
+    const guild = await client.guilds.get(process.env.DOTAU_GUILD);
     const author = await guild.fetchMember(msg.author);
 
     if (!author) {
-      // not from dfz
+      // not from DOTAU
       return;
     }
 
     const question = args.join(' ');
 
-    const qaChannel = await client.channels.get(process.env.DFZ_QA_CHANNEL);
+    const qaChannel = await client.channels.get(process.env.DOTAU_QA_CHANNEL);
 
     const embed = generateQAEmbed(question, author);
 
@@ -1184,7 +1184,7 @@ commandForName['ask'] = {
 // !answer <messageId> response
 commandForName['answer'] = {
   execute: async (msg, args) => {
-    const guild = await client.guilds.get(process.env.DFZ_GUILD);
+    const guild = await client.guilds.get(process.env.DOTAU_GUILD);
     const author = await guild.fetchMember(msg.author);
 
     const canAnswer = author.roles.some((role) => questionAnswerableIds.includes(role.id));
@@ -1201,7 +1201,7 @@ commandForName['answer'] = {
       return author.send('Shorter than 1024 characters, sorry eh.');
     }
 
-    const qaChannel = await client.channels.get(process.env.DFZ_QA_CHANNEL);
+    const qaChannel = await client.channels.get(process.env.DOTAU_QA_CHANNEL);
 
     const questionMessage = await qaChannel.fetchMessage(messageId);
 
@@ -1229,7 +1229,7 @@ commandForName['answer'] = {
 // toggles the @coach on the lobby
 commandForName['coach'] = {
   execute: async (msg, args) => {
-    if (msg.channel.id !== process.env.DFZ_COACHES_CHANNEL) {
+    if (msg.channel.id !== process.env.DOTAU_COACHES_CHANNEL) {
       return;
     }
 
@@ -1261,7 +1261,7 @@ commandForName['coach'] = {
       data: lobby
     });
 
-    const channel = await client.channels.get(process.env.DFZ_LOBBY_CHANNEL);
+    const channel = await client.channels.get(process.env.DOTAU_LOBBY_CHANNEL);
     const message = await channel.fetchMessage(lobby.id);
 
     if (message) {
@@ -1294,8 +1294,8 @@ function isOwner(userId) {
 
 function isWatchingChannel(discord_id) {
   return (
-    process.env.DFZ_LOBBY_CHANNEL === discord_id ||
-    process.env.DFZ_COACHES_CHANNEL === discord_id
+    process.env.DOTAU_LOBBY_CHANNEL === discord_id ||
+    process.env.DOTAU_COACHES_CHANNEL === discord_id
   );
 }
 
