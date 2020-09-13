@@ -471,7 +471,6 @@ const postLobby = async (args) => {
 const postTryout = async (args) => {
   const dateText = args.slice(2).join(' ');
   const freeText = args.slice(0).join(' ');
-console.log("Hello!");
   const tryoutRole = process.env.TIER_TRYOUT
   const timezones = ['America/Los_Angeles', 'America/New_York', 'Europe/Berlin', 'Asia/Singapore'];
   let timeString = '';
@@ -484,9 +483,9 @@ console.log("Hello!");
 
 //  if the date is in the past
   var now = new Date();
-  now.setHours(0,0,0,0);
   if (date < now){
-    await internalChannel.send(`The date you specified is in the past.\nCurrent Time:${now}\nRequested Time:${date}`);
+    const t = "```"
+    await internalChannel.send(`The date you specified is in the past.\n${t}Current Time:    ${now}\nRequested Time: ${date}${t} `);
   }
   for (i = 0; i < timezones.length; i++) {
     timeString += "  " + date.toLocaleString("en-US", {
