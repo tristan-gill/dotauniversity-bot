@@ -92,21 +92,28 @@ client.once('ready', async () => {
 
 
 // ~~~~~~~~~~~~~~~~ CRON STUFF ~~~~~~~~~~~~~~~~
+// 1 - Monday
+// 2 - Tuesday
+// 3 - Wednesday
+// 4 - Thursday
+// 5 - Friday
+// 6 - Saturday
+// 0 - Sunday
 
 const scheduledLobbies = [{
     min: '0',
     hour: '14',
     dayOfMonth: '*',
     month: '*',
-    dayOfWeek: '1',
-    args: ['23', 'EU', 'lobby at 20:00 CEST // 2PM EDT (UNCOACHED)']
+    dayOfWeek: '1,2,4',
+    args: ['12', 'EU', 'lobby at 20:00 CEST // 2PM EDT']
   },
   {
-    min: '0',
+    min: '1',
     hour: '14',
     dayOfMonth: '*',
     month: '*',
-    dayOfWeek: '3',
+    dayOfWeek: '2,3',
     args: ['34', 'EU', 'lobby at 20:00 CEST // 2PM EDT']
   },
   {
@@ -114,16 +121,8 @@ const scheduledLobbies = [{
     hour: '14',
     dayOfMonth: '*',
     month: '*',
-    dayOfWeek: '2,4,5',
-    args: ['12', 'EU', 'lobby at 20:00 CEST // 2PM EDT']
-  },
-  {
-    min: '0',
-    hour: '14',
-    dayOfMonth: '*',
-    month: '*',
     dayOfWeek: '0',
-    args: ['234', 'EU', 'lobby at 20:00 CEST // 2PM EDT (UNCOACHED)']
+    args: ['234', 'EU', 'lobby at 20:00 CEST // 2PM EDT']
   },
 
   {
@@ -766,7 +765,7 @@ client.on('messageReactionAdd', async (reaction, user) => {
     const embed = generateEmbed(lobby);
     await reaction.message.edit(embed);
 
-    const bigAssMessage = "**Hello and Welcome to Dota University!**\n\nIf you didn't know, the aim of Dota U is to be a platform for beginners to have fair and fun games! We offer new player coaching and lobby games that are designed to help you understand and get better at Dota2!\n\nAs you do your tryouts, a coach will watch your gameplay VS bots for the first 10-15 minutes of the game and will assign you into one of the 4 beginner tiers. The coach will not tell you to do anything so that they do not influence your gameplay. \n\nIn the meantime, Change your nickname in Discord to have your region tag in front of your name.  This will make it easy for everyone to know what region you are in.\n*Ex: if you are in NA and your name is AfroPenguin, change your nickname to [NA] AfroPenguin*\n\n**To join the tryout lobby at the start time, in dota go to:**\n**Play Dota > Custom Lobbies > Browse > Server (ask the coach) > Lobby Name : DotaU Tryouts > password: dotau**\n\nMake sure to join the voice channel!\nhttps://discord.gg/49CV692\n\nDon't worry too much about the tryouts!\nJust play as you normally would and most importantly, have fun!"
+    const bigAssMessage = "**Hello and Welcome to Dota University!**\n\nThe aim of DotaU is to be a platform for beginners to have fair and fun games! We offer new player coaching and lobby games that are designed to help you understand and get better at Dota2!\n\nAs you do your tryout, a coach will watch your gameplay VS bots for the first 10-15 minutes of the game, and will assign you into one of the 3 beginner tiers. The coach will not tell you to do anything so that they do not influence your gameplay. There's no pressure for you to perform, pick a hero you have tried before or you're comfortable with.\n\nTo join the tryout lobby, in Dota go to:\n> Play Dota > Custom Lobbies > Browse > Server (ask coach) > Lobby Name : DotaU Tryouts > password: dotau\n\nMake sure to join the voice channel!\nhttps://discord.gg/49CV692\n\nDon't worry too much about the tryouts!\nJust play as you normally would and most importantly, have fun! :)";
     await user.send(bigAssMessage);
 
     return reaction.remove(user);
