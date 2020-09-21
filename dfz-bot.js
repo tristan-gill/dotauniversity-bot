@@ -138,7 +138,7 @@ const scheduledLobbies = [{
     hour: '21',
     dayOfMonth: '*',
     month: '*',
-    dayOfWeek: '3,5',
+    dayOfWeek: '1,3',
     args: ['34', 'NA', 'lobby at 9pm EDT']
   },
   {
