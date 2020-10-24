@@ -24,6 +24,7 @@ const PREFIX = '!';
 const queuableRoles = [process.env.COACH, process.env.TIER_ONE, process.env.TIER_TWO, process.env.TIER_THREE, process.env.TIER_FOUR, process.env.TIER_GRAD, process.env.TIER_TRYOUT];
 const emojiNumbers = ['0️⃣', '1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
 const voiceChannels = [process.env.DFZ_VC_1, process.env.DFZ_VC_2, process.env.DFZ_VC_3, process.env.DFZ_VC_4];
+const beginnerTiers = [process.env.TIER_ONE, process.env.TIER_TWO, process.env.TIER_THREE, process.env.TIER_FOUR, process.env.TIER_GRAD]
 
 const questionAnswerableIds = [process.env.COACH, process.env.DFZ_ADMIN, process.env.DFZ_QA_CONTRIBUTOR];
 
@@ -179,20 +180,26 @@ const commandForName = {};
 
 // users / transfer commands
 const updateUsersTable = async () => {
-  const dbClient = await pool.connect();
+  // const dbClient = await pool.connect();
 
-  const guild = client.guilds.get('629298549976334337');
-  const guildMembers = await guild.fetchMembers();
+  // const guild = client.guilds.get(process.env.DFZ_GUILD);
+  // const guildMembers = await guild.fetchMembers();
 
-  for (const member of guildMembers.members) {
-    await saveUser({
-      id: member[0],
-      roles: member[1]._roles,
-      username: member[1].user.username
-    }, dbClient);
-  }
+  // beginnerTiers
 
-  dbClient.release();
+  // for (const member of guildMembers.members) {
+  //   const role = member.roles.find((role) => beginnerTiers.includes(role.id);
+  //   if (role) {
+
+  //   }
+  //   await saveUser({
+  //     id: member[0],
+  //     roles: member[1]._roles,
+  //     username: member[1].user.username
+  //   }, dbClient);
+  // }
+
+  // dbClient.release();
 }
 
 const saveUser = async (user, dbClient) => {
@@ -1291,14 +1298,7 @@ Voice Channels
   General #1            631605827337191428
   Team #1               754027683889020928
   AFK
-
 */
-
-commandForName['log'] = {
-  execute: async (msg, args) => {
-    console.log({generalArray, teamArray, lobbyArray, watchingVoiceChannels: JSON.stringify(watchingVoiceChannels)})
-  }
-}
 
 let generalArray = [];
 let teamArray = [];
@@ -1312,8 +1312,9 @@ const createVoiceChannelHandling = async () => {
   const radiantArray = [];
   const direArray = [];
 
-  // channelArray: ['channelId', channelObj]
+  // populate the lobby arrays with existing channels
   for (const channelArray of guild.channels) {
+    // channelArray: ['channelId', channelObj]
     if (!channelArray || channelArray.length < 2) {
       continue;
     }
@@ -1324,7 +1325,7 @@ const createVoiceChannelHandling = async () => {
       continue;
     }
 
-    if (channel.name.startsWith('Main Lobby')) {
+    if (channel.name.startsWith('🤍 Main Lobby')) {
       mainLobbyArray.push({
         id: channel.id,
         order: parseInt(channel.name.slice(-1)),
@@ -1362,7 +1363,7 @@ const createVoiceChannelHandling = async () => {
     }
   }
 
-  // order them
+  // order them by the numbers at the end of the channel names
   mainLobbyArray.sort((a, b) => a.order - b.order);
   radiantArray.sort((a, b) => a.order - b.order);
   direArray.sort((a, b) => a.order - b.order);
@@ -1378,10 +1379,10 @@ const createVoiceChannelHandling = async () => {
     });
   }
 
-  //TODO delete empty ones
   let deletedCount = 0;
   let deletedIds = [];
 
+  // clean up extra lobby channels
   for (const channel of lobbyArray) {
     if (channel.members === 0 && channel !== lobbyArray[lobbyArray.length - 1]) {
       const mainLobbyDiscordChannel = await client.channels.get(channel.ids[0]);
@@ -1407,7 +1408,7 @@ const createVoiceChannelHandling = async () => {
       const mainLobbyDiscordChannel = await client.channels.get(channel.ids[0]);
       const radiantDiscordChannel = await client.channels.get(channel.ids[1]);
       const direDiscordChannel = await client.channels.get(channel.ids[2]);
-      await mainLobbyDiscordChannel.edit({ name: `Main Lobby #${channel.order - deletedCount}` });
+      await mainLobbyDiscordChannel.edit({ name: `🤍 Main Lobby #${channel.order - deletedCount}` });
       await radiantDiscordChannel.edit({ name: `Team Radiant #${channel.order - deletedCount}` });
       await direDiscordChannel.edit({ name: `Team Dire #${channel.order - deletedCount}` });
 
@@ -1416,7 +1417,7 @@ const createVoiceChannelHandling = async () => {
   }
   lobbyArray = lobbyArray.filter((x) => !x.deleted);
 
-
+  // clean up extra team channels
   deletedCount = 0;
   for (const channel of teamArray) {
     if (channel.members === 0 && channel !== teamArray[teamArray.length - 1]) {
@@ -1442,7 +1443,7 @@ const createVoiceChannelHandling = async () => {
   }
   teamArray = teamArray.filter((x) => !x.deleted);
 
-
+  // clean up extra general channels
   deletedCount = 0;
   for (const channel of generalArray) {
     if (channel.members === 0 && channel !== generalArray[generalArray.length - 1]) {
@@ -1528,22 +1529,25 @@ client.on('voiceStateUpdate', async (memberOldState, memberNewState) => {
         const lastChannel = lobbyArray[lobbyArray.length - 1];
         const lastDiscordChannel = await client.channels.get(lastChannel.ids[2]);
 
-        const newMainChannel = await guild.createChannel(`Main Lobby #${lastChannel.order + 1}`, {
+        const newMainChannel = await guild.createChannel(`🤍 Main Lobby #${lastChannel.order + 1}`, {
           type: 'voice',
           position: lastDiscordChannel.position,
-          parent: lastDiscordChannel.parent
+          parent: lastDiscordChannel.parent,
+          userLimit: 99
         });
 
         const newRadiantChannel = await guild.createChannel(`Team Radiant #${lastChannel.order + 1}`, {
           type: 'voice',
           position: lastDiscordChannel.position,
-          parent: lastDiscordChannel.parent
+          parent: lastDiscordChannel.parent,
+          userLimit: 6
         });
 
         const newDireChannel = await guild.createChannel(`Team Dire #${lastChannel.order + 1}`, {
           type: 'voice',
           position: lastDiscordChannel.position,
-          parent: lastDiscordChannel.parent
+          parent: lastDiscordChannel.parent,
+          userLimit: 6
         });
 
         lobbyArray.push({
@@ -1651,7 +1655,7 @@ client.on('voiceStateUpdate', async (memberOldState, memberNewState) => {
             const mainLobbyDiscordChannel = await client.channels.get(channel.ids[0]);
             const radiantDiscordChannel = await client.channels.get(channel.ids[1]);
             const direDiscordChannel = await client.channels.get(channel.ids[2]);
-            await mainLobbyDiscordChannel.edit({ name: `Main Lobby #${channel.order - 1}` });
+            await mainLobbyDiscordChannel.edit({ name: `🤍 Main Lobby #${channel.order - 1}` });
             await radiantDiscordChannel.edit({ name: `Team Radiant #${channel.order - 1}` });
             await direDiscordChannel.edit({ name: `Team Dire #${channel.order - 1}` });
 
@@ -1714,6 +1718,15 @@ client.on('voiceStateUpdate', async (memberOldState, memberNewState) => {
     }
   }
 });
+
+
+/* ----- Auto Role -----
+  Any member can pick their region, but we want just beginners of a certain region to be able to see the region channels
+  So when a person has [region] + [beginner] then we give them `${[region]}-beginner` role which has view perms on the regional channels
+
+  needs SYNC component, that applies the region-beginner role to all beginners with a region
+  needs ONCHANGE component, that applies/removes the region-beginner role when a relevant role is changed
+*/
 
 const generateQAEmbed = (questionText, author, footerText, answer) => {
   const embed = new Discord.RichEmbed();
