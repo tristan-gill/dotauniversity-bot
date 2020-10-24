@@ -3,6 +3,7 @@ require('dotenv').config();
 const Discord = require('discord.js');
 const client = new Discord.Client();
 const moment = require('moment');
+const Mutex = require('async-mutex').Mutex;
 
 const express = require('express');
 
@@ -79,6 +80,7 @@ const whitelistedTipChannels = {
 
 // array of lobby posts
 let lobbies;
+let mutex;
 
 client.once('ready', async () => {
   lobbies = [];
@@ -89,6 +91,8 @@ client.once('ready', async () => {
   // await updateUsersTable();
 
   await scheduleLobbies();
+
+  mutex = new Mutex();
 
   await createVoiceChannelHandling();
 });
@@ -1475,248 +1479,256 @@ const createVoiceChannelHandling = async () => {
 }
 
 client.on('voiceStateUpdate', async (memberOldState, memberNewState) => {
-  // dont care if they are changing state in the same channel
-  if (memberNewState.voiceChannelID === memberOldState.voiceChannelID) {
-    return;
-  }
+  // OK SO. Node will attempt to "multi-thread" event handlers like this at awaits. So
+  // if one person joins a channel then a second person joins a second later, when the first persons
+  // handler hits an await, it switches to the second, which is bad. We mutex them to ensure the voicechannels object
+  // and the actual channels themselves arent getting edited by two callbacks at once
+  await mutex.runExclusive(async () => {
+    // dont care if they are changing state in the same channel
+    if (memberNewState.voiceChannelID === memberOldState.voiceChannelID) {
+      return;
+    }
 
-  // if they leave a lobby group channel into another lobbygroup channel (Team Dire #1 to Team Radiant #1 for example)
-  if (watchingVoiceChannels.hasOwnProperty(memberNewState.voiceChannelID) && watchingVoiceChannels.hasOwnProperty(memberOldState.voiceChannelID)) {
-    if (watchingVoiceChannels[memberNewState.voiceChannelID] === watchingVoiceChannels[memberOldState.voiceChannelID]) {
+    // if they leave a lobby group channel into another lobbygroup channel (Team Dire #1 to Team Radiant #1 for example)
+    if (watchingVoiceChannels.hasOwnProperty(memberNewState.voiceChannelID) && watchingVoiceChannels.hasOwnProperty(memberOldState.voiceChannelID)) {
+      if (watchingVoiceChannels[memberNewState.voiceChannelID] === watchingVoiceChannels[memberOldState.voiceChannelID]) {
+        let channelArray;
+        if (watchingVoiceChannels[memberNewState.voiceChannelID] === 'lobbyArray') {
+          const joinedChannel = lobbyArray.find((c) => {
+            return (c.ids && c.ids.includes(memberNewState.voiceChannelID));
+          });
+
+          const leftChannel = lobbyArray.find((c) => {
+            return (c.ids && c.ids.includes(memberOldState.voiceChannelID));
+          });
+
+          //TODO test this
+          if (joinedChannel === leftChannel) {
+            return;
+          }
+        }
+      }
+    }
+
+    // joining a watched channel
+    if (watchingVoiceChannels.hasOwnProperty(memberNewState.voiceChannelID)) {
       let channelArray;
       if (watchingVoiceChannels[memberNewState.voiceChannelID] === 'lobbyArray') {
-        const joinedChannel = lobbyArray.find((c) => {
-          return (c.ids && c.ids.includes(memberNewState.voiceChannelID));
-        });
+        channelArray = lobbyArray;
+      } else if (watchingVoiceChannels[memberNewState.voiceChannelID] === 'generalArray') {
+        channelArray = generalArray;
+      } else if (watchingVoiceChannels[memberNewState.voiceChannelID] === 'teamArray') {
+        channelArray = teamArray;
+      }
 
-        const leftChannel = lobbyArray.find((c) => {
-          return (c.ids && c.ids.includes(memberOldState.voiceChannelID));
-        });
+      const joinedChannel = channelArray.find((c) => {
+        return c.id === memberNewState.voiceChannelID || (c.ids && c.ids.includes(memberNewState.voiceChannelID));
+      });
 
-        //TODO test this
-        if (joinedChannel === leftChannel) {
-          return;
+      if (!joinedChannel) {
+        console.log(`big problem, couldnt find ${memberNewState.voiceChannelID} channel in channelArray: ${channelArray}`);
+      }
+
+      // if the channel is empty we are going to need to add a new one
+      if (joinedChannel.members < 1) {
+        // FN: add a new channel(s) relative to channel
+        const guild = await client.guilds.get(process.env.DFZ_GUILD);
+        // gotta do special stuff for each type of lobby
+        if (channelArray === lobbyArray) {
+          const lastChannel = lobbyArray[lobbyArray.length - 1];
+          const lastDiscordChannel = await client.channels.get(lastChannel.ids[2]);
+
+          const newMainChannel = await guild.createChannel(`🤍 Main Lobby #${lastChannel.order + 1}`, {
+            type: 'voice',
+            position: lastDiscordChannel.position,
+            parent: lastDiscordChannel.parent,
+            userLimit: 99
+          });
+
+          const newRadiantChannel = await guild.createChannel(`Team Radiant #${lastChannel.order + 1}`, {
+            type: 'voice',
+            position: lastDiscordChannel.position,
+            parent: lastDiscordChannel.parent,
+            userLimit: 6
+          });
+
+          const newDireChannel = await guild.createChannel(`Team Dire #${lastChannel.order + 1}`, {
+            type: 'voice',
+            position: lastDiscordChannel.position,
+            parent: lastDiscordChannel.parent,
+            userLimit: 6
+          });
+
+          lobbyArray.push({
+            ids: [newMainChannel.id, newRadiantChannel.id, newDireChannel.id],
+            name: newMainChannel.name,
+            order: lastChannel.order + 1,
+            members: 0,
+          });
+
+          watchingVoiceChannels[newMainChannel.id] = 'lobbyArray';
+          watchingVoiceChannels[newRadiantChannel.id] = 'lobbyArray';
+          watchingVoiceChannels[newDireChannel.id] = 'lobbyArray';
+        } else if (channelArray === teamArray) {
+          const lastChannel = teamArray[teamArray.length - 1];
+          const lastDiscordChannel = await client.channels.get(lastChannel.id);
+
+          const newTeamChannel = await guild.createChannel(`Team #${lastChannel.order + 1}`, {
+            type: 'voice',
+            position: lastDiscordChannel.position,
+            parent: lastDiscordChannel.parent,
+            userLimit: 6
+          });
+
+          teamArray.push({
+            id: newTeamChannel.id,
+            name: newTeamChannel.name,
+            order: lastChannel.order + 1,
+            members: 0
+          });
+
+          watchingVoiceChannels[newTeamChannel.id] = 'teamArray';
+        } else if (channelArray === generalArray) {
+          const lastChannel = generalArray[generalArray.length - 1];
+          const lastDiscordChannel = await client.channels.get(lastChannel.id);
+
+          const newGeneralChannel = await guild.createChannel(`General #${lastChannel.order + 1}`, {
+            type: 'voice',
+            position: lastDiscordChannel.position,
+            parent: lastDiscordChannel.parent
+          });
+
+          generalArray.push({
+            id: newGeneralChannel.id,
+            name: newGeneralChannel.name,
+            order: lastChannel.order + 1,
+            members: 0
+          });
+
+          watchingVoiceChannels[newGeneralChannel.id] = 'generalArray';
+        }
+
+        joinedChannel.members++;
+      } else {
+        // they are joining a channel that already has people in it, dont need to do much
+        joinedChannel.members++;
+      }
+    }
+
+    // leaving a watched channel
+    if (watchingVoiceChannels.hasOwnProperty(memberOldState.voiceChannelID)) {
+      let channelArray;
+      if (watchingVoiceChannels[memberOldState.voiceChannelID] === 'lobbyArray') {
+        channelArray = lobbyArray;
+      } else if (watchingVoiceChannels[memberOldState.voiceChannelID] === 'generalArray') {
+        channelArray = generalArray;
+      } else if (watchingVoiceChannels[memberOldState.voiceChannelID] === 'teamArray') {
+        channelArray = teamArray;
+      }
+
+      const leftChannel = channelArray.find((c) => {
+        return c.id === memberOldState.voiceChannelID || (c.ids && c.ids.includes(memberOldState.voiceChannelID));
+      });
+
+      if (!leftChannel) {
+        console.log(`big problem, couldnt find ${memberOldState.voiceChannelID} channel in channelArray: ${channelArray}`);
+      }
+
+      if (leftChannel.members > 1 || channelArray.length === 1) {
+        // leaving a channel with people in it, dont need to do much
+        leftChannel.members--;
+      } else {
+        const guild = await client.guilds.get(process.env.DFZ_GUILD);
+
+        // last one to leave the channel, time to delete shit
+        // loop through all the channels, if its the one they left, delete it, then
+        // reduce the numbers of the remaining lobbies by 1
+
+        if (channelArray === lobbyArray) {
+          let deleted = false;
+          for (const channel of lobbyArray) {
+            if (channel === leftChannel) {
+              const leftMainLobbyDiscordChannel = await client.channels.get(channel.ids[0]);
+              const leftRadiantDiscordChannel = await client.channels.get(channel.ids[1]);
+              const leftDireDiscordChannel = await client.channels.get(channel.ids[2]);
+              await leftMainLobbyDiscordChannel.delete();
+              await leftRadiantDiscordChannel.delete();
+              await leftDireDiscordChannel.delete();
+
+              deleted = true;
+              continue;
+            }
+
+            if (deleted) {
+              // alter the names
+              const mainLobbyDiscordChannel = await client.channels.get(channel.ids[0]);
+              const radiantDiscordChannel = await client.channels.get(channel.ids[1]);
+              const direDiscordChannel = await client.channels.get(channel.ids[2]);
+              await mainLobbyDiscordChannel.edit({ name: `🤍 Main Lobby #${channel.order - 1}` });
+              await radiantDiscordChannel.edit({ name: `Team Radiant #${channel.order - 1}` });
+              await direDiscordChannel.edit({ name: `Team Dire #${channel.order - 1}` });
+
+              channel.order--;
+            }
+          }
+
+          lobbyArray = lobbyArray.filter((l) => l !== leftChannel);
+
+          delete watchingVoiceChannels[leftChannel.ids[0]];
+          delete watchingVoiceChannels[leftChannel.ids[1]];
+          delete watchingVoiceChannels[leftChannel.ids[2]];
+        } else if (channelArray === teamArray) {
+          let deleted = false;
+          for (const channel of teamArray) {
+            if (channel === leftChannel) {
+              const leftDiscordChannel = await client.channels.get(channel.id);
+              await leftDiscordChannel.delete();
+
+              deleted = true;
+              continue;
+            }
+
+            if (deleted) {
+              // alter the names
+              const discordChannel = await client.channels.get(channel.id);
+              await discordChannel.edit({ name: `Team #${channel.order - 1}` });
+
+              channel.order--;
+            }
+          }
+
+          teamArray = teamArray.filter((l) => l !== leftChannel);
+
+          delete watchingVoiceChannels[leftChannel.id];
+        } else if (channelArray === generalArray) {
+          let deleted = false;
+          for (const channel of generalArray) {
+            if (channel === leftChannel) {
+              const leftDiscordChannel = await client.channels.get(channel.id);
+              await leftDiscordChannel.delete();
+
+              deleted = true;
+              continue;
+            }
+
+            if (deleted) {
+              // alter the names
+              const discordChannel = await client.channels.get(channel.id);
+              await discordChannel.edit({ name: `General #${channel.order - 1}` });
+
+              channel.order--;
+            }
+          }
+
+          generalArray = generalArray.filter((l) => l !== leftChannel);
+
+          delete watchingVoiceChannels[leftChannel.id];
         }
       }
     }
-  }
 
-  // joining a watched channel
-  if (watchingVoiceChannels.hasOwnProperty(memberNewState.voiceChannelID)) {
-    let channelArray;
-    if (watchingVoiceChannels[memberNewState.voiceChannelID] === 'lobbyArray') {
-      channelArray = lobbyArray;
-    } else if (watchingVoiceChannels[memberNewState.voiceChannelID] === 'generalArray') {
-      channelArray = generalArray;
-    } else if (watchingVoiceChannels[memberNewState.voiceChannelID] === 'teamArray') {
-      channelArray = teamArray;
-    }
-
-    const joinedChannel = channelArray.find((c) => {
-      return c.id === memberNewState.voiceChannelID || (c.ids && c.ids.includes(memberNewState.voiceChannelID));
-    });
-
-    if (!joinedChannel) {
-      console.log(`big problem, couldnt find ${memberNewState.voiceChannelID} channel in channelArray: ${channelArray}`);
-    }
-
-    // if the channel is empty we are going to need to add a new one
-    if (joinedChannel.members < 1) {
-      // FN: add a new channel(s) relative to channel
-      const guild = await client.guilds.get(process.env.DFZ_GUILD);
-      // gotta do special stuff for each type of lobby
-      if (channelArray === lobbyArray) {
-        const lastChannel = lobbyArray[lobbyArray.length - 1];
-        const lastDiscordChannel = await client.channels.get(lastChannel.ids[2]);
-
-        const newMainChannel = await guild.createChannel(`🤍 Main Lobby #${lastChannel.order + 1}`, {
-          type: 'voice',
-          position: lastDiscordChannel.position,
-          parent: lastDiscordChannel.parent,
-          userLimit: 99
-        });
-
-        const newRadiantChannel = await guild.createChannel(`Team Radiant #${lastChannel.order + 1}`, {
-          type: 'voice',
-          position: lastDiscordChannel.position,
-          parent: lastDiscordChannel.parent,
-          userLimit: 6
-        });
-
-        const newDireChannel = await guild.createChannel(`Team Dire #${lastChannel.order + 1}`, {
-          type: 'voice',
-          position: lastDiscordChannel.position,
-          parent: lastDiscordChannel.parent,
-          userLimit: 6
-        });
-
-        lobbyArray.push({
-          ids: [newMainChannel.id, newRadiantChannel.id, newDireChannel.id],
-          name: newMainChannel.name,
-          order: lastChannel.order + 1,
-          members: 0,
-        });
-
-        watchingVoiceChannels[newMainChannel.id] = 'lobbyArray';
-        watchingVoiceChannels[newRadiantChannel.id] = 'lobbyArray';
-        watchingVoiceChannels[newDireChannel.id] = 'lobbyArray';
-      } else if (channelArray === teamArray) {
-        const lastChannel = teamArray[teamArray.length - 1];
-        const lastDiscordChannel = await client.channels.get(lastChannel.id);
-
-        const newTeamChannel = await guild.createChannel(`Team #${lastChannel.order + 1}`, {
-          type: 'voice',
-          position: lastDiscordChannel.position,
-          parent: lastDiscordChannel.parent,
-          userLimit: 6
-        });
-
-        teamArray.push({
-          id: newTeamChannel.id,
-          name: newTeamChannel.name,
-          order: lastChannel.order + 1,
-          members: 0
-        });
-
-        watchingVoiceChannels[newTeamChannel.id] = 'teamArray';
-      } else if (channelArray === generalArray) {
-        const lastChannel = generalArray[generalArray.length - 1];
-        const lastDiscordChannel = await client.channels.get(lastChannel.id);
-
-        const newGeneralChannel = await guild.createChannel(`General #${lastChannel.order + 1}`, {
-          type: 'voice',
-          position: lastDiscordChannel.position,
-          parent: lastDiscordChannel.parent
-        });
-
-        generalArray.push({
-          id: newGeneralChannel.id,
-          name: newGeneralChannel.name,
-          order: lastChannel.order + 1,
-          members: 0
-        });
-
-        watchingVoiceChannels[newGeneralChannel.id] = 'generalArray';
-      }
-
-      joinedChannel.members++;
-    } else {
-      // they are joining a channel that already has people in it, dont need to do much
-      joinedChannel.members++;
-    }
-  }
-
-  // leaving a watched channel
-  if (watchingVoiceChannels.hasOwnProperty(memberOldState.voiceChannelID)) {
-    let channelArray;
-    if (watchingVoiceChannels[memberOldState.voiceChannelID] === 'lobbyArray') {
-      channelArray = lobbyArray;
-    } else if (watchingVoiceChannels[memberOldState.voiceChannelID] === 'generalArray') {
-      channelArray = generalArray;
-    } else if (watchingVoiceChannels[memberOldState.voiceChannelID] === 'teamArray') {
-      channelArray = teamArray;
-    }
-
-    const leftChannel = channelArray.find((c) => {
-      return c.id === memberOldState.voiceChannelID || (c.ids && c.ids.includes(memberOldState.voiceChannelID));
-    });
-
-    if (!leftChannel) {
-      console.log(`big problem, couldnt find ${memberOldState.voiceChannelID} channel in channelArray: ${channelArray}`);
-    }
-
-    if (leftChannel.members > 1 || channelArray.length === 1) {
-      // leaving a channel with people in it, dont need to do much
-      leftChannel.members--;
-    } else {
-      const guild = await client.guilds.get(process.env.DFZ_GUILD);
-
-      // last one to leave the channel, time to delete shit
-      // loop through all the channels, if its the one they left, delete it, then
-      // reduce the numbers of the remaining lobbies by 1
-
-      if (channelArray === lobbyArray) {
-        let deleted = false;
-        for (const channel of lobbyArray) {
-          if (channel === leftChannel) {
-            const leftMainLobbyDiscordChannel = await client.channels.get(channel.ids[0]);
-            const leftRadiantDiscordChannel = await client.channels.get(channel.ids[1]);
-            const leftDireDiscordChannel = await client.channels.get(channel.ids[2]);
-            await leftMainLobbyDiscordChannel.delete();
-            await leftRadiantDiscordChannel.delete();
-            await leftDireDiscordChannel.delete();
-
-            deleted = true;
-            continue;
-          }
-
-          if (deleted) {
-            // alter the names
-            const mainLobbyDiscordChannel = await client.channels.get(channel.ids[0]);
-            const radiantDiscordChannel = await client.channels.get(channel.ids[1]);
-            const direDiscordChannel = await client.channels.get(channel.ids[2]);
-            await mainLobbyDiscordChannel.edit({ name: `🤍 Main Lobby #${channel.order - 1}` });
-            await radiantDiscordChannel.edit({ name: `Team Radiant #${channel.order - 1}` });
-            await direDiscordChannel.edit({ name: `Team Dire #${channel.order - 1}` });
-
-            channel.order--;
-          }
-        }
-
-        lobbyArray = lobbyArray.filter((l) => l !== leftChannel);
-
-        delete watchingVoiceChannels[leftChannel.ids[0]];
-        delete watchingVoiceChannels[leftChannel.ids[1]];
-        delete watchingVoiceChannels[leftChannel.ids[2]];
-      } else if (channelArray === teamArray) {
-        let deleted = false;
-        for (const channel of teamArray) {
-          if (channel === leftChannel) {
-            const leftDiscordChannel = await client.channels.get(channel.id);
-            await leftDiscordChannel.delete();
-
-            deleted = true;
-            continue;
-          }
-
-          if (deleted) {
-            // alter the names
-            const discordChannel = await client.channels.get(channel.id);
-            await discordChannel.edit({ name: `Team #${channel.order - 1}` });
-
-            channel.order--;
-          }
-        }
-
-        teamArray = teamArray.filter((l) => l !== leftChannel);
-
-        delete watchingVoiceChannels[leftChannel.id];
-      } else if (channelArray === generalArray) {
-        let deleted = false;
-        for (const channel of generalArray) {
-          if (channel === leftChannel) {
-            const leftDiscordChannel = await client.channels.get(channel.id);
-            await leftDiscordChannel.delete();
-
-            deleted = true;
-            continue;
-          }
-
-          if (deleted) {
-            // alter the names
-            const discordChannel = await client.channels.get(channel.id);
-            await discordChannel.edit({ name: `General #${channel.order - 1}` });
-
-            channel.order--;
-          }
-        }
-
-        generalArray = generalArray.filter((l) => l !== leftChannel);
-
-        delete watchingVoiceChannels[leftChannel.id];
-      }
-    }
-  }
+    return;
+  });
 });
 
 
