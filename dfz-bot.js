@@ -109,27 +109,27 @@ client.once('ready', async () => {
 
 const scheduledLobbies = [{
     min: '0',
-    hour: '14',
+    hour: '15',
     dayOfMonth: '*',
     month: '*',
     dayOfWeek: '2,4,0',
-    args: ['12', 'EU', 'lobby at 20:00 CEST // 2PM EDT']
+    args: ['12', 'EU', 'lobby at 20:00 CET // 3PM EDT']
   },
   {
     min: '1',
-    hour: '14',
+    hour: '15',
     dayOfMonth: '*',
     month: '*',
     dayOfWeek: '2,3',
-    args: ['34', 'EU', 'lobby at 20:00 CEST // 2PM EDT']
+    args: ['34', 'EU', 'lobby at 20:00 CET // 3PM EDT']
   },
   {
     min: '0',
-    hour: '14',
+    hour: '15',
     dayOfMonth: '*',
     month: '*',
     dayOfWeek: '1',
-    args: ['234', 'EU', 'lobby at 20:00 CEST // 2PM EDT']
+    args: ['234', 'EU', 'lobby at 20:00 CET // 3PM EDT']
   },
 
   {
