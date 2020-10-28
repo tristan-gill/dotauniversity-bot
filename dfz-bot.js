@@ -90,7 +90,7 @@ client.once('ready', async () => {
 
   // await updateUsersTable();
 
-  await scheduleLobbies();
+  // await scheduleLobbies();
 
   mutex = new Mutex();
 
