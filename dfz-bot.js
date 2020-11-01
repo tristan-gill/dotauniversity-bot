@@ -24,7 +24,6 @@ const PREFIX = '!';
 
 const queuableRoles = [process.env.COACH, process.env.TIER_ONE, process.env.TIER_TWO, process.env.TIER_THREE, process.env.TIER_FOUR, process.env.TIER_GRAD, process.env.TIER_TRYOUT];
 const emojiNumbers = ['0️⃣', '1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
-const voiceChannels = [process.env.DFZ_VC_1, process.env.DFZ_VC_2, process.env.DFZ_VC_3, process.env.DFZ_VC_4];
 const beginnerTiers = [process.env.TIER_ONE, process.env.TIER_TWO, process.env.TIER_THREE, process.env.TIER_FOUR, process.env.TIER_GRAD]
 
 const questionAnswerableIds = [process.env.COACH, process.env.DFZ_ADMIN, process.env.DFZ_QA_CONTRIBUTOR];
@@ -109,7 +108,7 @@ client.once('ready', async () => {
 
 const scheduledLobbies = [{
     min: '0',
-    hour: '15',
+    hour: '14',
     dayOfMonth: '*',
     month: '*',
     dayOfWeek: '2,4,0',
@@ -117,7 +116,7 @@ const scheduledLobbies = [{
   },
   {
     min: '1',
-    hour: '15',
+    hour: '14',
     dayOfMonth: '*',
     month: '*',
     dayOfWeek: '2,3',
@@ -125,7 +124,7 @@ const scheduledLobbies = [{
   },
   {
     min: '0',
-    hour: '15',
+    hour: '14',
     dayOfMonth: '*',
     month: '*',
     dayOfWeek: '1',
@@ -177,7 +176,7 @@ const scheduleLobby = async (scheduledLobby) => {
 }
 
 const scheduleVoiceChannelUpdater = () => {
-  new CronJob('0 */5 * * * *', async () => {
+  new CronJob('30 */5 * * * *', async () => {
     await createVoiceChannelHandling();
   }, null, true, 'America/New_York');
 }
@@ -557,12 +556,14 @@ const generateTipEmbed = (receiver, sender, receiverUsersTips, senderUsersTips, 
 
 // ~~~~~~~~~~~~~~~~ END TIPS STUFF ~~~~~~~~~~~~~~~~
 
-client.on('messageReactionAdd', async (reaction, user) => {
+const messageReactionAdd = async (reaction, user) => {
   if (user.bot) {
     return;
   }
 
-  const guildUser = await reaction.message.channel.guild.members.fetch(user.id);
+  const guild = await client.guilds.fetch(process.env.DFZ_GUILD);
+  const guildUser = await guild.members.fetch({ user, force: true });
+
   const tier = guildUser.roles.cache.find((role) => queuableRoles.includes(role.id));
 
   // if is a coach
@@ -574,7 +575,7 @@ client.on('messageReactionAdd', async (reaction, user) => {
   if (reaction.emoji.name === 'Tip') {
     // cant tip urself
     if (user.id === reaction.message.author.id) {
-      return reaction.remove(user);
+      return reaction.users.remove(user);
     }
 
     const dbClient = await pool.connect();
@@ -599,7 +600,7 @@ client.on('messageReactionAdd', async (reaction, user) => {
       } else {
         // not enough tips
         dbClient.release();
-        return reaction.remove(user);
+        return reaction.users.remove(user);
       }
     }
 
@@ -659,7 +660,7 @@ client.on('messageReactionAdd', async (reaction, user) => {
           id: lobby.id,
           data: lobby
         });
-        return reaction.remove(user);
+        return reaction.users.remove(user);
       }
     }
 
@@ -677,7 +678,7 @@ client.on('messageReactionAdd', async (reaction, user) => {
     const bigAssMessage = "**Hello and Welcome to Dota University!**\n\nThe aim of DotaU is to be a platform for beginners to have fair and fun games! We offer new player coaching and lobby games that are designed to help you understand and get better at Dota2!\n\nAs you do your tryout, a coach will watch your gameplay VS bots for the first 10-15 minutes of the game, and will assign you into one of the 3 beginner tiers. The coach will not tell you to do anything so that they do not influence your gameplay. There's no pressure for you to perform, pick a hero you have tried before or you're comfortable with.\n\nTo join the tryout lobby, in Dota go to:\n> Play Dota > Custom Lobbies > Browse > Server (ask coach) > Lobby Name : DotaU Tryouts > password: dotau\n\nMake sure to join the voice channel!\nhttps://discord.gg/49CV692\n\nDon't worry too much about the tryouts!\nJust play as you normally would and most importantly, have fun! :)";
     await user.send(bigAssMessage);
 
-    return reaction.remove(user);
+    return reaction.users.remove(user);
   }
 
   if (isCoach || isAdmin) {
@@ -686,24 +687,26 @@ client.on('messageReactionAdd', async (reaction, user) => {
       // remind
       // for each group in the post
       for (let l = 0; l < lobby.fields.length; l++) {
-        if (lobby.fields[l].length >= 10) {
-          const voiceChannel = await client.channels.fetch(voiceChannels[0]).createInvite();
+        if (lobby.fields[l].length >= 10 || l === 0) {
+          const voiceChannel = await client.channels.fetch(lobbyArray[0].ids[0]);
+          const channelInvite = await voiceChannel.createInvite();
 
           // send to the coach/reacter
-          await user.send(`**Lobby reminder!**\nHead over to the voice channel: ${voiceChannel.url}`);
+          await user.send(`**Lobby reminder!**\nHead over to the voice channel: ${channelInvite.url}`);
 
           for (const player of lobby.fields[l]) {
-            const u = client.users.fetch(player.id);
-            await u.send(`**Lobby reminder!**\nHead over to the voice channel: ${voiceChannel.url}`);
+            const u = await client.users.fetch(player.id);
+            await u.send(`**Lobby reminder!**\nHead over to the voice channel: ${channelInvite.url}`);
           }
         }
       }
 
-      return reaction.remove(user);
+      return reaction.users.remove(user);
     } else if (reaction.emoji.name === '🗒️') {
       // print
-      await user.send(getPostPrintString(lobby));
-      return reaction.remove(user);
+      const postString = getPostPrintString(lobby);
+      await user.send(postString);
+      return reaction.users.remove(user);
     } else if (reaction.emoji.name === '🏁') {
       // print
       // Get list of people who reacted to the tryout message
@@ -741,7 +744,7 @@ client.on('messageReactionAdd', async (reaction, user) => {
       const embed = generateEmbed(lobby);
       await reaction.message.edit(embed);
 
-      return reaction.remove(user);
+      return reaction.users.remove(user);
     } else if (reaction.emoji.name === '📚') {
       if (lobby.coaches.includes(user.id)) {
         lobby.coaches = lobby.coaches.filter((coach) => coach !== user.id);
@@ -757,7 +760,7 @@ client.on('messageReactionAdd', async (reaction, user) => {
       const embed = generateEmbed(lobby);
       await reaction.message.edit(embed);
 
-      return reaction.remove(user);
+      return reaction.users.remove(user);
     } else {
       // lets see if the coach/admin clicked 12345
       const positionNumber = emojiNumbers.indexOf(reaction.emoji.name);
@@ -790,26 +793,26 @@ client.on('messageReactionAdd', async (reaction, user) => {
         }
       }
 
-      return reaction.remove(user);
+      return reaction.users.remove(user);
     }
   }
 
   if (!tier || !lobby.tiers.includes(tier.id)) {
-    return reaction.remove(user);
+    return reaction.users.remove(user);
   }
 
   const positionNumber = emojiNumbers.indexOf(reaction.emoji.name);
 
   if (positionNumber < 1 || positionNumber > 5) {
-    return reaction.remove(user);
+    return reaction.users.remove(user);
   }
 
   if (!lobby) {
-    return reaction.remove(user);
+    return reaction.users.remove(user);
   }
 
   if (lobby.locked) {
-    return reaction.remove(user);
+    return reaction.users.remove(user);
   }
 
   // if already signed up, update roles
@@ -833,7 +836,7 @@ client.on('messageReactionAdd', async (reaction, user) => {
 
   // not yet signed up, add them
   await addToLobby(lobby, user, reaction, tier, positionNumber);
-});
+}
 
 // no nice event handler for reaction removal, raw looks at all discord events
 client.on('raw', async (event) => {
@@ -901,7 +904,7 @@ client.on('raw', async (event) => {
     const emoji = event.d.emoji.id ? `${event.d.emoji.name}:${event.d.emoji.id}` : event.d.emoji.name;
     const reaction = message.reactions.cache.find((r) => r._emoji.name === event.d.emoji.name);
 
-    client.emit('messageReactionAdd', reaction, await client.users.fetch(event.d.user_id));
+    await messageReactionAdd(reaction, await client.users.fetch(event.d.user_id));
   }
 });
 
@@ -1083,8 +1086,8 @@ const getPostPrintString = (lobby) => {
 commandForName['ask'] = {
   execute: async (msg, args) => {
     const guild = await client.guilds.fetch(process.env.DFZ_GUILD);
-    const author = await guild.members.fetch(msg.author);
-console.log({author})
+    const author = await guild.members.fetch({ user: msg.author, force: true });
+
     if (!author) {
       // not from dfz
       return;
@@ -1106,7 +1109,7 @@ console.log({author})
 commandForName['answer'] = {
   execute: async (msg, args) => {
     const guild = await client.guilds.fetch(process.env.DFZ_GUILD);
-    const author = await guild.members.fetch(msg.author);
+    const author = await guild.members.fetch({ user: msg.author, force: true });
 
     const canAnswer = author.roles.cache.some((role) => questionAnswerableIds.includes(role.id));
 
@@ -1220,7 +1223,7 @@ const createVoiceChannelHandling = async () => {
     lobbyArray = [];
     watchingVoiceChannels = {};
 
-    const guild = await client.guilds.fetch(process.env.DFZ_GUILD);
+    const guild = await client.guilds.fetch(process.env.DFZ_GUILD, true, true);
 
     const mainLobbyArray = [];
     const radiantArray = [];
@@ -1366,7 +1369,7 @@ const createVoiceChannelHandling = async () => {
     lobbyArray = lobbyArray.filter((x) => !x.deleted);
     // check if we need another lobby channel
     if (lobbyArray[lobbyArray.length - 1].members !== 0) {
-      await addLobbyArrayChannel();
+      await addLobbyArrayChannel(guild);
     }
 
     // clean up extra team channels
@@ -1396,7 +1399,7 @@ const createVoiceChannelHandling = async () => {
     teamArray = teamArray.filter((x) => !x.deleted);
     // check if we need another team channel
     if (teamArray[teamArray.length - 1].members !== 0) {
-      await addTeamArrayChannel();
+      await addTeamArrayChannel(guild);
     }
 
     // clean up extra general channels
@@ -1426,7 +1429,7 @@ const createVoiceChannelHandling = async () => {
     generalArray = generalArray.filter((x) => !x.deleted);
     // check if we need another general channel
     if (generalArray[generalArray.length - 1].members !== 0) {
-      await addGeneralArrayChannel();
+      await addGeneralArrayChannel(guild);
     }
 
     for (const deletedId of deletedIds) {
@@ -1435,27 +1438,27 @@ const createVoiceChannelHandling = async () => {
   });
 }
 
-const addLobbyArrayChannel = async () => {
+const addLobbyArrayChannel = async (guild) => {
   const lastChannel = lobbyArray[lobbyArray.length - 1];
   const lastDiscordChannel = await client.channels.fetch(lastChannel.ids[2]);
 
-  const newMainChannel = await guild.createChannel(`🤍 Main Lobby #${lastChannel.order + 1}`, {
+  const newMainChannel = await guild.channels.create(`🤍 Main Lobby #${lastChannel.order + 1}`, {
     type: 'voice',
-    position: lastDiscordChannel.position,
+    position: lastDiscordChannel.rawPosition,
     parent: lastDiscordChannel.parent,
     userLimit: 99
   });
 
-  const newRadiantChannel = await guild.createChannel(`Team Radiant #${lastChannel.order + 1}`, {
+  const newRadiantChannel = await guild.channels.create(`Team Radiant #${lastChannel.order + 1}`, {
     type: 'voice',
-    position: lastDiscordChannel.position,
+    position: lastDiscordChannel.rawPosition,
     parent: lastDiscordChannel.parent,
     userLimit: 6
   });
 
-  const newDireChannel = await guild.createChannel(`Team Dire #${lastChannel.order + 1}`, {
+  const newDireChannel = await guild.channels.create(`Team Dire #${lastChannel.order + 1}`, {
     type: 'voice',
-    position: lastDiscordChannel.position,
+    position: lastDiscordChannel.rawPosition,
     parent: lastDiscordChannel.parent,
     userLimit: 6
   });
@@ -1472,13 +1475,13 @@ const addLobbyArrayChannel = async () => {
   watchingVoiceChannels[newDireChannel.id] = 'lobbyArray';
 }
 
-const addTeamArrayChannel = async () => {
+const addTeamArrayChannel = async (guild) => {
   const lastChannel = teamArray[teamArray.length - 1];
   const lastDiscordChannel = await client.channels.fetch(lastChannel.id);
 
-  const newTeamChannel = await guild.createChannel(`Team #${lastChannel.order + 1}`, {
+  const newTeamChannel = await guild.channels.create(`Team #${lastChannel.order + 1}`, {
     type: 'voice',
-    position: lastDiscordChannel.position,
+    position: lastDiscordChannel.rawPosition,
     parent: lastDiscordChannel.parent,
     userLimit: 6
   });
@@ -1493,13 +1496,13 @@ const addTeamArrayChannel = async () => {
   watchingVoiceChannels[newTeamChannel.id] = 'teamArray';
 }
 
-const addGeneralArrayChannel = async () => {
+const addGeneralArrayChannel = async (guild) => {
   const lastChannel = generalArray[generalArray.length - 1];
   const lastDiscordChannel = await client.channels.fetch(lastChannel.id);
 
-  const newGeneralChannel = await guild.createChannel(`General #${lastChannel.order + 1}`, {
+  const newGeneralChannel = await guild.channels.create(`General #${lastChannel.order + 1}`, {
     type: 'voice',
-    position: lastDiscordChannel.position,
+    position: lastDiscordChannel.rawPosition,
     parent: lastDiscordChannel.parent
   });
 
@@ -1513,31 +1516,37 @@ const addGeneralArrayChannel = async () => {
   watchingVoiceChannels[newGeneralChannel.id] = 'generalArray';
 }
 
-client.on('voiceStateUpdate', async (memberOldState, memberNewState) => {
+commandForName['log'] = {
+  execute: async (msg, args) => {
+    console.log({generalArray, teamArray, lobbyArray, watchingVoiceChannels: JSON.stringify(watchingVoiceChannels)})
+  }
+}
+
+
+client.on('voiceStateUpdate', async (oldState, newState) => {
   // OK SO. Node will attempt to "multi-thread" event handlers like this at awaits. So
   // if one person joins a channel then a second person joins a second later, when the first persons
   // handler hits an await, it switches to the second, which is bad. We mutex them to ensure the voicechannels object
   // and the actual channels themselves arent getting edited by two callbacks at once
   await mutex.runExclusive(async () => {
     // dont care if they are changing state in the same channel
-    if (memberNewState.voiceChannelID === memberOldState.voiceChannelID) {
+    if (newState.channelID === oldState.channelID) {
       return;
     }
 
     // if they leave a lobby group channel into another lobbygroup channel (Team Dire #1 to Team Radiant #1 for example)
-    if (watchingVoiceChannels.hasOwnProperty(memberNewState.voiceChannelID) && watchingVoiceChannels.hasOwnProperty(memberOldState.voiceChannelID)) {
-      if (watchingVoiceChannels[memberNewState.voiceChannelID] === watchingVoiceChannels[memberOldState.voiceChannelID]) {
+    if (watchingVoiceChannels.hasOwnProperty(newState.channelID) && watchingVoiceChannels.hasOwnProperty(oldState.channelID)) {
+      if (watchingVoiceChannels[newState.channelID] === watchingVoiceChannels[oldState.channelID]) {
         let channelArray;
-        if (watchingVoiceChannels[memberNewState.voiceChannelID] === 'lobbyArray') {
+        if (watchingVoiceChannels[newState.channelID] === 'lobbyArray') {
           const joinedChannel = lobbyArray.find((c) => {
-            return (c.ids && c.ids.includes(memberNewState.voiceChannelID));
+            return (c.ids && c.ids.includes(newState.channelID));
           });
 
           const leftChannel = lobbyArray.find((c) => {
-            return (c.ids && c.ids.includes(memberOldState.voiceChannelID));
+            return (c.ids && c.ids.includes(oldState.channelID));
           });
 
-          //TODO test this
           if (joinedChannel === leftChannel) {
             return;
           }
@@ -1546,22 +1555,22 @@ client.on('voiceStateUpdate', async (memberOldState, memberNewState) => {
     }
 
     // joining a watched channel
-    if (watchingVoiceChannels.hasOwnProperty(memberNewState.voiceChannelID)) {
+    if (watchingVoiceChannels.hasOwnProperty(newState.channelID)) {
       let channelArray;
-      if (watchingVoiceChannels[memberNewState.voiceChannelID] === 'lobbyArray') {
+      if (watchingVoiceChannels[newState.channelID] === 'lobbyArray') {
         channelArray = lobbyArray;
-      } else if (watchingVoiceChannels[memberNewState.voiceChannelID] === 'generalArray') {
+      } else if (watchingVoiceChannels[newState.channelID] === 'generalArray') {
         channelArray = generalArray;
-      } else if (watchingVoiceChannels[memberNewState.voiceChannelID] === 'teamArray') {
+      } else if (watchingVoiceChannels[newState.channelID] === 'teamArray') {
         channelArray = teamArray;
       }
 
       const joinedChannel = channelArray.find((c) => {
-        return c.id === memberNewState.voiceChannelID || (c.ids && c.ids.includes(memberNewState.voiceChannelID));
+        return c.id === newState.channelID || (c.ids && c.ids.includes(newState.channelID));
       });
 
       if (!joinedChannel) {
-        console.log(`big problem, couldnt find ${memberNewState.voiceChannelID} channel in channelArray: ${channelArray}`);
+        console.log(`big problem, couldnt find ${newState.channelID} channel in channelArray: ${channelArray}`);
       }
 
       // if the channel is empty we are going to need to add a new one
@@ -1570,11 +1579,11 @@ client.on('voiceStateUpdate', async (memberOldState, memberNewState) => {
         const guild = await client.guilds.fetch(process.env.DFZ_GUILD);
         // gotta do special stuff for each type of lobby
         if (channelArray === lobbyArray) {
-          await addLobbyArrayChannel();
+          await addLobbyArrayChannel(guild);
         } else if (channelArray === teamArray) {
-          await addTeamArrayChannel();
+          await addTeamArrayChannel(guild);
         } else if (channelArray === generalArray) {
-          await addGeneralArrayChannel();
+          await addGeneralArrayChannel(guild);
         }
 
         joinedChannel.members++;
@@ -1585,22 +1594,22 @@ client.on('voiceStateUpdate', async (memberOldState, memberNewState) => {
     }
 
     // leaving a watched channel
-    if (watchingVoiceChannels.hasOwnProperty(memberOldState.voiceChannelID)) {
+    if (watchingVoiceChannels.hasOwnProperty(oldState.channelID)) {
       let channelArray;
-      if (watchingVoiceChannels[memberOldState.voiceChannelID] === 'lobbyArray') {
+      if (watchingVoiceChannels[oldState.channelID] === 'lobbyArray') {
         channelArray = lobbyArray;
-      } else if (watchingVoiceChannels[memberOldState.voiceChannelID] === 'generalArray') {
+      } else if (watchingVoiceChannels[oldState.channelID] === 'generalArray') {
         channelArray = generalArray;
-      } else if (watchingVoiceChannels[memberOldState.voiceChannelID] === 'teamArray') {
+      } else if (watchingVoiceChannels[oldState.channelID] === 'teamArray') {
         channelArray = teamArray;
       }
 
       const leftChannel = channelArray.find((c) => {
-        return c.id === memberOldState.voiceChannelID || (c.ids && c.ids.includes(memberOldState.voiceChannelID));
+        return c.id === oldState.channelID || (c.ids && c.ids.includes(oldState.channelID));
       });
 
       if (!leftChannel) {
-        console.log(`big problem, couldnt find ${memberOldState.voiceChannelID} channel in channelArray: ${channelArray}`);
+        console.log(`big problem, couldnt find ${oldState.channelID} channel in channelArray: ${channelArray}`);
       }
 
       if (leftChannel.members > 1 || channelArray.length === 1) {
