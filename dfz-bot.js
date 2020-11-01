@@ -90,11 +90,11 @@ client.once('ready', async () => {
 
   // await updateUsersTable();
 
-  // await scheduleLobbies();
+  await scheduleLobbies();
 
   mutex = new Mutex();
-
   await createVoiceChannelHandling();
+  await scheduleVoiceChannelUpdater();
 });
 
 
@@ -176,6 +176,12 @@ const scheduleLobby = async (scheduledLobby) => {
   // at cron time, send out ping
 }
 
+const scheduleVoiceChannelUpdater = () => {
+  new CronJob('0 */5 * * * *', async () => {
+    await createVoiceChannelHandling();
+  }, null, true, 'America/New_York');
+}
+
 // ~~~~~~~~~~~~~~~~ END CRON STUFF ~~~~~~~~~~~~~~~~
 
 
@@ -186,7 +192,7 @@ const commandForName = {};
 const updateUsersTable = async () => {
   // const dbClient = await pool.connect();
 
-  // const guild = client.guilds.get(process.env.DFZ_GUILD);
+  // const guild = client.guilds.fetch(process.env.DFZ_GUILD);
   // const guildMembers = await guild.fetchMembers();
 
   // beginnerTiers
@@ -217,121 +223,10 @@ const saveUser = async (user, dbClient) => {
   await dbClient.query(text, values);
 }
 
-const rolesMap = {
-  // yagpdb.xyz
-  "664261527687266305": null,
-  // admin
-  "664843392756482098": "731171811152101397",
-  //intermediate
-  "688870180646158399": "731171811143975022",
-  //bots
-  "629653230971781120": "731171811143975021",
-  // headcoach
-  "631918135905091594": "731171811143975020",
-  //coach
-  "629623683958177793": "731171811143975019",
-  // coach inhouse
-  "700113712945823874": "731171811143975018",
-  //staff
-  "629624134179094579": "731171811143975017",
-  //tournament champion
-  "673338917117755403": "731171811143975016",
-  // mod mute
-  "679375449104580629": "731171811143975015",
-  // honorary
-  "664455951897722881": "731171811143975014",
-  // server booster is this automatic?
-  "647359339010457604": null,
-  // mee6
-  "629650879397756949": null,
-  // tournament org
-  "670732153910198312": "731171811143975013",
-  // tier 1
-  "629623752010891284": "731171811131392080",
-  // tier 2
-  "629623832990187520": "731171811131392079",
-  // tier 3
-  "629623895401562123": "731171811131392078",
-  // tier 4
-  "724326915753771068": "731171811131392077",
-  // grad
-  "688703108888526886": "731171811131392076",
-  // unnoficial inhouse
-  "723931615352455189": "731171811131392075",
-  // bot prac
-  "723931625230041100": "731171811131392074",
-  // tryout
-  "631474548319191053": "731171811131392073",
-  // workshop
-  "680498688430440558": "731171811131392072",
-  // events
-  "698832577150320700": "731171811131392071",
-  // table sim
-  "698935479852204122": "731171810757967981",
-  // eu coach
-  "669872208847437844": "731171810757967980",
-  // na coach
-  "668136392567816202": "731171810757967979",
-  // sea coach
-  "669867457196064818": "731171810757967978",
-  // eu
-  "664261682415271986": "731171810757967977",
-  // na
-  "664261634612789269": "731171810757967976",
-  // sea
-  "664261661472849922": "731171810757967975",
-  // community
-  "630697798022463497": "731171810757967974",
-  // bota
-  "629826340379557912": null,
-  //dfz
-  "686308071194230818": null,
-  // mango
-  "631428023916167198": null,
-  // gather
-  "631867955851821086": null,
-  // betterttv
-  "634017453147422741": null,
-  // serverstats
-  "664506937949421569": null,
-  // logger
-  "693550838827843665": null,
-  // groovy
-  "696040292033364079": null
-};
-
-const getRoles = async (user_id) => {
-  const query = `
-    select
-      roles
-    from users
-    where id = '${user_id}';
-  `;
-
-  const response = await pool.query(query);
-
-  if (response.rows && response.rows.length) {
-    return response.rows[0].roles;
-  }
-}
-
-client.on('guildMemberAdd', async (member) => {
-  const previousRoles = await getRoles(member.id);
-  if (previousRoles && previousRoles.length) {
-    for (const role of previousRoles) {
-      const newRole = rolesMap[role];
-      if (newRole) {
-        await member.addRole(newRole);
-      }
-    }
-  }
-});
-
-
 // lobby database commands
 const loadPastLobbies = async () => {
-  const lobbyChannel = await client.channels.get(process.env.DFZ_LOBBY_CHANNEL);
-  const tryoutChannel = await client.channels.get(process.env.DFZ_TRYOUT_CHANNEL);
+  const lobbyChannel = await client.channels.fetch(process.env.DFZ_LOBBY_CHANNEL);
+  const tryoutChannel = await client.channels.fetch(process.env.DFZ_TRYOUT_CHANNEL);
 
   // Get the saved lobbies from the database
   const dbLobbies = await getLobbies();
@@ -342,9 +237,9 @@ const loadPastLobbies = async () => {
     // need to fetch the messages to add them to the cache
     try {
       if (lobby.type === 'beginner') {
-        await lobbyChannel.fetchMessage(lobby.id);
+        const message = await lobbyChannel.messages.fetch(lobby.id);
       } else if (lobby.type === 'tryout') {
-        await tryoutChannel.fetchMessage(lobby.id);
+        await tryoutChannel.messages.fetch(lobby.id);
       }
     } catch (err) {
       console.log({
@@ -410,7 +305,8 @@ commandForName['post'] = {
       return;
     }
 
-    const isCoach = msg.member.roles.some((role) => role.id === process.env.COACH);
+    const isCoach = msg.member.roles.cache.some((role) => role.id === process.env.COACH);
+
     if (!isCoach && msg.channel.id !== process.env.DFZ_COACHES_CHANNEL) {
       return msg.channel.send('Sorry, only coaches can manage this.');
     }
@@ -447,7 +343,7 @@ const postLobby = async (args) => {
     locked: false
   };
 
-  const channel = await client.channels.get(process.env.DFZ_LOBBY_CHANNEL);
+  const channel = await client.channels.fetch(process.env.DFZ_LOBBY_CHANNEL);
 
   const tiersString = tiers.map((tier) => {
     return `<@&${tier}>`;
@@ -492,7 +388,7 @@ const postTryout = async (args) => {
   const date = new Date(dateText);
   if (date == "Invalid Date") {
     console.log(date);
-    const internalChannel = await client.channels.get(process.env.DFZ_COACHES_CHANNEL);
+    const internalChannel = await client.channels.fetch(process.env.DFZ_COACHES_CHANNEL);
     await internalChannel.send("Invalid Date. Try something like this:```!post tryout at 9/1/2020 15:00 PST\n!post tryout at 9/1/2020 15:00 GMT-0700\n!post tryout at Thu Jan 02 2014 00:00:00 GMT-0600\n```");
     return;
   }
@@ -517,7 +413,7 @@ const postTryout = async (args) => {
     locked: false
   };
 
-  const channel = await client.channels.get(process.env.DFZ_TRYOUT_CHANNEL);
+  const channel = await client.channels.fetch(process.env.DFZ_TRYOUT_CHANNEL);
 
   await channel.send(`**<@&${tryoutRole}> Time!**\nHosting tryouts at:\n${timeString}\nReact with ✳ to the message below if you wanna join. All regions are free to attend.\n`);
 
@@ -536,7 +432,7 @@ const postTryout = async (args) => {
 
   await message.react('✳');
   await message.react('📚');
-//  await message.react('🏁');
+  //  await message.react('🏁');
   await message.react('🔒');
 
   return lobby;
@@ -639,7 +535,7 @@ const updateTipEmbedMessageId = async (messageId, embedMessageId, dbClient) => {
 }
 
 const generateTipEmbed = (receiver, sender, receiverUsersTips, senderUsersTips, message) => {
-  const embed = new Discord.RichEmbed();
+  const embed = new Discord.MessageEmbed();
   embed.setColor([222, 97, 1]);
 
   try {
@@ -666,12 +562,12 @@ client.on('messageReactionAdd', async (reaction, user) => {
     return;
   }
 
-  const guildUser = await reaction.message.channel.guild.fetchMember(user.id);
-  const tier = guildUser.roles.find((role) => queuableRoles.includes(role.id));
+  const guildUser = await reaction.message.channel.guild.members.fetch(user.id);
+  const tier = guildUser.roles.cache.find((role) => queuableRoles.includes(role.id));
 
   // if is a coach
-  const isCoach = guildUser.roles.some((role) => role.id === process.env.COACH);
-  const isAdmin = guildUser.roles.some((role) => role.id === process.env.DFZ_ADMIN);
+  const isCoach = guildUser.roles.cache.some((role) => role.id === process.env.COACH);
+  const isAdmin = guildUser.roles.cache.some((role) => role.id === process.env.DFZ_ADMIN);
 
 
   // tip handling
@@ -732,7 +628,7 @@ client.on('messageReactionAdd', async (reaction, user) => {
       const embed = generateTipEmbed(reaction.message.author, user, receiverTips, sendersTips, reaction.message);
 
       if (previousEmbedId) {
-        const previousEmbedMessage = await reaction.message.channel.fetchMessage(previousEmbedId);
+        const previousEmbedMessage = await reaction.message.channel.messages.fetch(previousEmbedId);
         await previousEmbedMessage.edit(embed);
       } else {
         const embedMessage = await reaction.message.channel.send(embed);
@@ -791,13 +687,13 @@ client.on('messageReactionAdd', async (reaction, user) => {
       // for each group in the post
       for (let l = 0; l < lobby.fields.length; l++) {
         if (lobby.fields[l].length >= 10) {
-          const voiceChannel = await client.channels.get(voiceChannels[0]).createInvite();
+          const voiceChannel = await client.channels.fetch(voiceChannels[0]).createInvite();
 
           // send to the coach/reacter
           await user.send(`**Lobby reminder!**\nHead over to the voice channel: ${voiceChannel.url}`);
 
           for (const player of lobby.fields[l]) {
-            const u = client.users.get(player.id);
+            const u = client.users.fetch(player.id);
             await u.send(`**Lobby reminder!**\nHead over to the voice channel: ${voiceChannel.url}`);
           }
         }
@@ -811,28 +707,28 @@ client.on('messageReactionAdd', async (reaction, user) => {
     } else if (reaction.emoji.name === '🏁') {
       // print
       // Get list of people who reacted to the tryout message
-      const signUpChannel = await client.channels.get(process.env.DFZ_SIGNUP_CHANNEL);
-      const internalChannel = await client.channels.get(process.env.DFZ_COACHES_CHANNEL);
+      // const signUpChannel = await client.channels.fetch(process.env.DFZ_SIGNUP_CHANNEL);
+      // const internalChannel = await client.channels.fetch(process.env.DFZ_COACHES_CHANNEL);
 
-      let playerInfoString = ""
+      // let playerInfoString = ""
 
-      for (const players of lobby.fields) {
-        const player = players.find((player) => player.id === user.id);
-        if (player) {
-          // get their info from the signup channel
-          await signUpChannel.fetchMessages().then(async messages => {
-            for (const message of messages.array().reverse()) {
-              if (parseInt(message.author.id) == parseInt(player.id) && message.content.includes("!apply")) {
-                //                            add their info to a big string
-                const stuff = message.content.split(",")[1].trim();
-                playerInfoString += message.author.username + "\n" + message.content + "\n" + `https://www.dotabuff.com/players/${stuff}\nTier 1/2/3/4 - `;
-              }
-            }
-          })
-        }
-      }
-      await user.send(playerInfoString);
-      return reaction.remove(user);
+      // for (const players of lobby.fields) {
+      //   const player = players.find((player) => player.id === user.id);
+      //   if (player) {
+      //     // get their info from the signup channel
+      //     await signUpChannel.fetchMessages().then(async messages => {
+      //       for (const message of messages.array().reverse()) {
+      //         if (parseInt(message.author.id) == parseInt(player.id) && message.content.includes("!apply")) {
+      //           //                            add their info to a big string
+      //           const stuff = message.content.split(",")[1].trim();
+      //           playerInfoString += message.author.username + "\n" + message.content + "\n" + `https://www.dotabuff.com/players/${stuff}\nTier 1/2/3/4 - `;
+      //         }
+      //       }
+      //     })
+      //   }
+      // }
+      // await user.send(playerInfoString);
+      // return reaction.remove(user);
     } else if (reaction.emoji.name === '🔒') {
       if (lobby.locked) {
         // do nothing, no unlocking
@@ -946,7 +842,7 @@ client.on('raw', async (event) => {
       d: data
     } = event;
 
-    const user = client.users.get(data.user_id);
+    const user = await client.users.fetch(data.user_id);
 
     if (user.bot || !isWatchingChannel(data.channel_id)) {
       return;
@@ -958,7 +854,8 @@ client.on('raw', async (event) => {
       return;
     }
 
-    const message = await client.channels.get(process.env.DFZ_LOBBY_CHANNEL).fetchMessage(data.message_id);
+    const channel = await client.channels.fetch(process.env.DFZ_LOBBY_CHANNEL);
+    const message = await channel.messages.fetch(data.message_id);
     const positionNumber = emojiNumbers.indexOf(data.emoji.name);
 
     if (positionNumber < 1 || positionNumber > 5) {
@@ -998,6 +895,13 @@ client.on('raw', async (event) => {
         }
       }
     }
+  } else if (event.t === 'MESSAGE_REACTION_ADD') {
+    const channel = await client.channels.fetch(event.d.channel_id);
+    const message = await channel.messages.fetch(event.d.message_id)
+    const emoji = event.d.emoji.id ? `${event.d.emoji.name}:${event.d.emoji.id}` : event.d.emoji.name;
+    const reaction = message.reactions.cache.find((r) => r._emoji.name === event.d.emoji.name);
+
+    client.emit('messageReactionAdd', reaction, await client.users.fetch(event.d.user_id));
   }
 });
 
@@ -1097,7 +1001,7 @@ const generateEmbed = (lobby) => {
 
   const lockedString = lobby.locked ? '🔒 ' : '';
 
-  const embed = new Discord.RichEmbed();
+  const embed = new Discord.MessageEmbed();
   embed.setColor('GOLD');
   embed.setAuthor(`${lockedString}${lobby.text} - (${playerCount})`);
   embed.setDescription(`Tiers: ${tiersString}`);
@@ -1178,9 +1082,9 @@ const getPostPrintString = (lobby) => {
 // !ask Blah blah blah blah
 commandForName['ask'] = {
   execute: async (msg, args) => {
-    const guild = await client.guilds.get(process.env.DFZ_GUILD);
-    const author = await guild.fetchMember(msg.author);
-
+    const guild = await client.guilds.fetch(process.env.DFZ_GUILD);
+    const author = await guild.members.fetch(msg.author);
+console.log({author})
     if (!author) {
       // not from dfz
       return;
@@ -1188,7 +1092,7 @@ commandForName['ask'] = {
 
     const question = args.join(' ');
 
-    const qaChannel = await client.channels.get(process.env.DFZ_QA_CHANNEL);
+    const qaChannel = await client.channels.fetch(process.env.DFZ_QA_CHANNEL);
 
     const embed = generateQAEmbed(question, author);
 
@@ -1201,10 +1105,10 @@ commandForName['ask'] = {
 // !answer <messageId> response
 commandForName['answer'] = {
   execute: async (msg, args) => {
-    const guild = await client.guilds.get(process.env.DFZ_GUILD);
-    const author = await guild.fetchMember(msg.author);
+    const guild = await client.guilds.fetch(process.env.DFZ_GUILD);
+    const author = await guild.members.fetch(msg.author);
 
-    const canAnswer = author.roles.some((role) => questionAnswerableIds.includes(role.id));
+    const canAnswer = author.roles.cache.some((role) => questionAnswerableIds.includes(role.id));
 
     if (!author || !canAnswer) {
       // not allowed to answer
@@ -1218,14 +1122,14 @@ commandForName['answer'] = {
       return author.send('Shorter than 1024 characters, sorry eh.');
     }
 
-    const qaChannel = await client.channels.get(process.env.DFZ_QA_CHANNEL);
+    const qaChannel = await client.channels.fetch(process.env.DFZ_QA_CHANNEL);
 
-    const questionMessage = await qaChannel.fetchMessage(messageId);
+    const questionMessage = await qaChannel.messages.fetch(messageId);
 
     if (questionMessage && questionMessage.embeds && questionMessage.embeds.length > 0) {
       const oldEmbed = questionMessage.embeds[0];
 
-      const embed = new Discord.RichEmbed();
+      const embed = new Discord.MessageEmbed();
       embed.setColor([193, 109, 255]);
       embed.setDescription(oldEmbed.description);
       embed.setAuthor(oldEmbed.author.name, oldEmbed.author.iconURL);
@@ -1278,8 +1182,8 @@ commandForName['coach'] = {
       data: lobby
     });
 
-    const channel = await client.channels.get(process.env.DFZ_LOBBY_CHANNEL);
-    const message = await channel.fetchMessage(lobby.id);
+    const channel = await client.channels.fetch(process.env.DFZ_LOBBY_CHANNEL);
+    const message = await channel.messages.fetch(lobby.id);
 
     if (message) {
       const embed = generateEmbed(lobby);
@@ -1307,175 +1211,306 @@ Voice Channels
 let generalArray = [];
 let teamArray = [];
 let lobbyArray = [];
-const watchingVoiceChannels = {};
+let watchingVoiceChannels = {};
 
 const createVoiceChannelHandling = async () => {
-  const guild = await client.guilds.get(process.env.DFZ_GUILD);
+  await mutex.runExclusive(async () => {
+    generalArray = [];
+    teamArray = [];
+    lobbyArray = [];
+    watchingVoiceChannels = {};
 
-  const mainLobbyArray = [];
-  const radiantArray = [];
-  const direArray = [];
+    const guild = await client.guilds.fetch(process.env.DFZ_GUILD);
 
-  // populate the lobby arrays with existing channels
-  for (const channelArray of guild.channels) {
-    // channelArray: ['channelId', channelObj]
-    if (!channelArray || channelArray.length < 2) {
-      continue;
+    const mainLobbyArray = [];
+    const radiantArray = [];
+    const direArray = [];
+
+    // populate the lobby arrays with existing channels
+    for (const channel of guild.channels.cache.array()) {
+      if (channel.type !== 'voice') {
+        continue;
+      }
+
+      if (channel.name.startsWith('🤍 Main Lobby')) {
+        const newChannel = {
+          id: channel.id,
+          order: parseInt(channel.name.slice(-1)),
+          members: channel.members.size
+        };
+
+        if (newChannel.order !== (mainLobbyArray.length + 1)) {
+          newChannel.order = (mainLobbyArray.length + 1);
+          await channel.edit({ name: `🤍 Main Lobby #${newChannel.order}` });
+        }
+
+        await channel.setPosition(((newChannel.order - 1) * 3) + 0);
+
+        mainLobbyArray.push(newChannel);
+        watchingVoiceChannels[channel.id] = 'lobbyArray';
+      } else if (channel.name.startsWith('Team Radiant')) {
+        const newChannel = {
+          id: channel.id,
+          order: parseInt(channel.name.slice(-1)),
+          members: channel.members.size
+        };
+
+        if (newChannel.order !== (radiantArray.length + 1)) {
+          newChannel.order = (radiantArray.length + 1);
+          await channel.edit({ name: `Team Radiant #${newChannel.order}` });
+        }
+
+        await channel.setPosition(((newChannel.order - 1) * 3) + 1);
+
+        radiantArray.push(newChannel);
+        watchingVoiceChannels[channel.id] = 'lobbyArray';
+      } else if (channel.name.startsWith('Team Dire')) {
+        const newChannel = {
+          id: channel.id,
+          order: parseInt(channel.name.slice(-1)),
+          members: channel.members.size
+        };
+
+        if (newChannel.order !== (direArray.length + 1)) {
+          newChannel.order = (direArray.length + 1);
+          await channel.edit({ name: `Team Dire #${newChannel.order}` });
+        }
+
+        await channel.setPosition(((newChannel.order - 1) * 3) + 2);
+
+        direArray.push(newChannel);
+        watchingVoiceChannels[channel.id] = 'lobbyArray';
+      } else if (channel.name.startsWith('General')) {
+        const newChannel = {
+          id: channel.id,
+          order: parseInt(channel.name.slice(-1)),
+          members: channel.members.size
+        };
+
+        if (newChannel.order !== (generalArray.length + 1)) {
+          newChannel.order = (generalArray.length + 1);
+          await channel.edit({ name: `General #${newChannel.order}` });
+        }
+
+        generalArray.push(newChannel);
+        watchingVoiceChannels[channel.id] = 'generalArray';
+      } else if (channel.name.startsWith('Team')) {
+        const newChannel = {
+          id: channel.id,
+          order: parseInt(channel.name.slice(-1)),
+          members: channel.members.size
+        };
+
+        if (newChannel.order !== (teamArray.length + 1)) {
+          newChannel.order = (teamArray.length + 1);
+          await channel.edit({ name: `Team #${newChannel.order}` });
+        }
+
+        teamArray.push(newChannel);
+        watchingVoiceChannels[channel.id] = 'teamArray';
+      }
     }
 
-    const channel = channelArray[1];
+    // order them by the numbers at the end of the channel names
+    mainLobbyArray.sort((a, b) => a.order - b.order);
+    radiantArray.sort((a, b) => a.order - b.order);
+    direArray.sort((a, b) => a.order - b.order);
+    teamArray.sort((a, b) => a.order - b.order);
+    generalArray.sort((a, b) => a.order - b.order);
 
-    if (channel.type !== 'voice') {
-      continue;
-    }
-
-    if (channel.name.startsWith('🤍 Main Lobby')) {
-      mainLobbyArray.push({
-        id: channel.id,
-        order: parseInt(channel.name.slice(-1)),
-        members: channel.members.size
+    // group the lobby ones together
+    for (let i = 0; i < mainLobbyArray.length; i++) {
+      lobbyArray.push({
+        ids: [mainLobbyArray[i].id, radiantArray[i].id, direArray[i].id],
+        order: mainLobbyArray[i].order,
+        members: mainLobbyArray[i].members + radiantArray[i].members + direArray[i].members,
       });
-      watchingVoiceChannels[channel.id] = 'lobbyArray';
-    } else if (channel.name.startsWith('Team Radiant')) {
-      radiantArray.push({
-        id: channel.id,
-        order: parseInt(channel.name.slice(-1)),
-        members: channel.members.size
-      });
-      watchingVoiceChannels[channel.id] = 'lobbyArray';
-    } else if (channel.name.startsWith('Team Dire')) {
-      direArray.push({
-        id: channel.id,
-        order: parseInt(channel.name.slice(-1)),
-        members: channel.members.size
-      });
-      watchingVoiceChannels[channel.id] = 'lobbyArray';
-    } else if (channel.name.startsWith('General')) {
-      generalArray.push({
-        id: channel.id,
-        order: parseInt(channel.name.slice(-1)),
-        members: channel.members.size
-      });
-      watchingVoiceChannels[channel.id] = 'generalArray';
-    } else if (channel.name.startsWith('Team')) {
-      teamArray.push({
-        id: channel.id,
-        order: parseInt(channel.name.slice(-1)),
-        members: channel.members.size
-      });
-      watchingVoiceChannels[channel.id] = 'teamArray';
-    }
-  }
-
-  // order them by the numbers at the end of the channel names
-  mainLobbyArray.sort((a, b) => a.order - b.order);
-  radiantArray.sort((a, b) => a.order - b.order);
-  direArray.sort((a, b) => a.order - b.order);
-  teamArray.sort((a, b) => a.order - b.order);
-  generalArray.sort((a, b) => a.order - b.order);
-
-  // group the lobby ones together
-  for (let i = 0; i < mainLobbyArray.length; i++) {
-    lobbyArray.push({
-      ids: [mainLobbyArray[i].id, radiantArray[i].id, direArray[i].id],
-      order: mainLobbyArray[i].order,
-      members: mainLobbyArray[i].members + radiantArray[i].members + direArray[i].members,
-    });
-  }
-
-  let deletedCount = 0;
-  let deletedIds = [];
-
-  // clean up extra lobby channels
-  for (const channel of lobbyArray) {
-    if (channel.members === 0 && channel !== lobbyArray[lobbyArray.length - 1]) {
-      const mainLobbyDiscordChannel = await client.channels.get(channel.ids[0]);
-      const radiantDiscordChannel = await client.channels.get(channel.ids[1]);
-      const direDiscordChannel = await client.channels.get(channel.ids[2]);
-      await mainLobbyDiscordChannel.delete();
-      await radiantDiscordChannel.delete();
-      await direDiscordChannel.delete();
-
-      deletedCount++;
-
-      deletedIds.push(channel.ids[0]);
-      deletedIds.push(channel.ids[1]);
-      deletedIds.push(channel.ids[2]);
-
-      channel.deleted = true;
-
-      continue;
     }
 
-    if (deletedCount > 0) {
-      // alter the names
-      const mainLobbyDiscordChannel = await client.channels.get(channel.ids[0]);
-      const radiantDiscordChannel = await client.channels.get(channel.ids[1]);
-      const direDiscordChannel = await client.channels.get(channel.ids[2]);
-      await mainLobbyDiscordChannel.edit({ name: `🤍 Main Lobby #${channel.order - deletedCount}` });
-      await radiantDiscordChannel.edit({ name: `Team Radiant #${channel.order - deletedCount}` });
-      await direDiscordChannel.edit({ name: `Team Dire #${channel.order - deletedCount}` });
+    let deletedCount = 0;
+    let deletedIds = [];
 
-      channel.order = channel.order - deletedCount;
+    // clean up extra lobby channels
+    for (const channel of lobbyArray) {
+      if (channel.members === 0 && channel !== lobbyArray[lobbyArray.length - 1]) {
+        const mainLobbyDiscordChannel = await client.channels.fetch(channel.ids[0]);
+        const radiantDiscordChannel = await client.channels.fetch(channel.ids[1]);
+        const direDiscordChannel = await client.channels.fetch(channel.ids[2]);
+        await mainLobbyDiscordChannel.delete();
+        await radiantDiscordChannel.delete();
+        await direDiscordChannel.delete();
+
+        deletedCount++;
+
+        deletedIds.push(channel.ids[0]);
+        deletedIds.push(channel.ids[1]);
+        deletedIds.push(channel.ids[2]);
+
+        channel.deleted = true;
+
+        continue;
+      }
+
+      if (deletedCount > 0) {
+        // alter the names
+        const mainLobbyDiscordChannel = await client.channels.fetch(channel.ids[0]);
+        const radiantDiscordChannel = await client.channels.fetch(channel.ids[1]);
+        const direDiscordChannel = await client.channels.fetch(channel.ids[2]);
+        await mainLobbyDiscordChannel.edit({ name: `🤍 Main Lobby #${channel.order - deletedCount}` });
+        await radiantDiscordChannel.edit({ name: `Team Radiant #${channel.order - deletedCount}` });
+        await direDiscordChannel.edit({ name: `Team Dire #${channel.order - deletedCount}` });
+
+        channel.order = channel.order - deletedCount;
+      }
     }
-  }
-  lobbyArray = lobbyArray.filter((x) => !x.deleted);
-
-  // clean up extra team channels
-  deletedCount = 0;
-  for (const channel of teamArray) {
-    if (channel.members === 0 && channel !== teamArray[teamArray.length - 1]) {
-      const discordChannel = await client.channels.get(channel.id);
-      await discordChannel.delete();
-
-      deletedCount++;
-
-      deletedIds.push(channel.id);
-
-      channel.deleted = true;
-
-      continue;
-    }
-
-    if (deletedCount > 0) {
-      // alter the names
-      const discordChannel = await client.channels.get(channel.id);
-      await discordChannel.edit({ name: `Team #${channel.order - deletedCount}` });
-
-      channel.order = channel.order - deletedCount;
-    }
-  }
-  teamArray = teamArray.filter((x) => !x.deleted);
-
-  // clean up extra general channels
-  deletedCount = 0;
-  for (const channel of generalArray) {
-    if (channel.members === 0 && channel !== generalArray[generalArray.length - 1]) {
-      const discordChannel = await client.channels.get(channel.id);
-      await discordChannel.delete();
-
-      deletedCount++;
-
-      deletedIds.push(channel.id);
-
-      channel.deleted = true;
-
-      continue;
+    lobbyArray = lobbyArray.filter((x) => !x.deleted);
+    // check if we need another lobby channel
+    if (lobbyArray[lobbyArray.length - 1].members !== 0) {
+      await addLobbyArrayChannel();
     }
 
-    if (deletedCount > 0) {
-      // alter the names
-      const discordChannel = await client.channels.get(channel.id);
-      await discordChannel.edit({ name: `General #${channel.order - deletedCount}` });
+    // clean up extra team channels
+    deletedCount = 0;
+    for (const channel of teamArray) {
+      if (channel.members === 0 && channel !== teamArray[teamArray.length - 1]) {
+        const discordChannel = await client.channels.fetch(channel.id);
+        await discordChannel.delete();
 
-      channel.order = channel.order - deletedCount;
+        deletedCount++;
+
+        deletedIds.push(channel.id);
+
+        channel.deleted = true;
+
+        continue;
+      }
+
+      if (deletedCount > 0) {
+        // alter the names
+        const discordChannel = await client.channels.fetch(channel.id);
+        await discordChannel.edit({ name: `Team #${channel.order - deletedCount}` });
+
+        channel.order = channel.order - deletedCount;
+      }
     }
-  }
-  generalArray = generalArray.filter((x) => !x.deleted);
+    teamArray = teamArray.filter((x) => !x.deleted);
+    // check if we need another team channel
+    if (teamArray[teamArray.length - 1].members !== 0) {
+      await addTeamArrayChannel();
+    }
 
-  for (const deletedId of deletedIds) {
-    delete watchingVoiceChannels[deletedId];
-  }
+    // clean up extra general channels
+    deletedCount = 0;
+    for (const channel of generalArray) {
+      if (channel.members === 0 && channel !== generalArray[generalArray.length - 1]) {
+        const discordChannel = await client.channels.fetch(channel.id);
+        await discordChannel.delete();
+
+        deletedCount++;
+
+        deletedIds.push(channel.id);
+
+        channel.deleted = true;
+
+        continue;
+      }
+
+      if (deletedCount > 0) {
+        // alter the names
+        const discordChannel = await client.channels.fetch(channel.id);
+        await discordChannel.edit({ name: `General #${channel.order - deletedCount}` });
+
+        channel.order = channel.order - deletedCount;
+      }
+    }
+    generalArray = generalArray.filter((x) => !x.deleted);
+    // check if we need another general channel
+    if (generalArray[generalArray.length - 1].members !== 0) {
+      await addGeneralArrayChannel();
+    }
+
+    for (const deletedId of deletedIds) {
+      delete watchingVoiceChannels[deletedId];
+    }
+  });
+}
+
+const addLobbyArrayChannel = async () => {
+  const lastChannel = lobbyArray[lobbyArray.length - 1];
+  const lastDiscordChannel = await client.channels.fetch(lastChannel.ids[2]);
+
+  const newMainChannel = await guild.createChannel(`🤍 Main Lobby #${lastChannel.order + 1}`, {
+    type: 'voice',
+    position: lastDiscordChannel.position,
+    parent: lastDiscordChannel.parent,
+    userLimit: 99
+  });
+
+  const newRadiantChannel = await guild.createChannel(`Team Radiant #${lastChannel.order + 1}`, {
+    type: 'voice',
+    position: lastDiscordChannel.position,
+    parent: lastDiscordChannel.parent,
+    userLimit: 6
+  });
+
+  const newDireChannel = await guild.createChannel(`Team Dire #${lastChannel.order + 1}`, {
+    type: 'voice',
+    position: lastDiscordChannel.position,
+    parent: lastDiscordChannel.parent,
+    userLimit: 6
+  });
+
+  lobbyArray.push({
+    ids: [newMainChannel.id, newRadiantChannel.id, newDireChannel.id],
+    name: newMainChannel.name,
+    order: lastChannel.order + 1,
+    members: 0,
+  });
+
+  watchingVoiceChannels[newMainChannel.id] = 'lobbyArray';
+  watchingVoiceChannels[newRadiantChannel.id] = 'lobbyArray';
+  watchingVoiceChannels[newDireChannel.id] = 'lobbyArray';
+}
+
+const addTeamArrayChannel = async () => {
+  const lastChannel = teamArray[teamArray.length - 1];
+  const lastDiscordChannel = await client.channels.fetch(lastChannel.id);
+
+  const newTeamChannel = await guild.createChannel(`Team #${lastChannel.order + 1}`, {
+    type: 'voice',
+    position: lastDiscordChannel.position,
+    parent: lastDiscordChannel.parent,
+    userLimit: 6
+  });
+
+  teamArray.push({
+    id: newTeamChannel.id,
+    name: newTeamChannel.name,
+    order: lastChannel.order + 1,
+    members: 0
+  });
+
+  watchingVoiceChannels[newTeamChannel.id] = 'teamArray';
+}
+
+const addGeneralArrayChannel = async () => {
+  const lastChannel = generalArray[generalArray.length - 1];
+  const lastDiscordChannel = await client.channels.fetch(lastChannel.id);
+
+  const newGeneralChannel = await guild.createChannel(`General #${lastChannel.order + 1}`, {
+    type: 'voice',
+    position: lastDiscordChannel.position,
+    parent: lastDiscordChannel.parent
+  });
+
+  generalArray.push({
+    id: newGeneralChannel.id,
+    name: newGeneralChannel.name,
+    order: lastChannel.order + 1,
+    members: 0
+  });
+
+  watchingVoiceChannels[newGeneralChannel.id] = 'generalArray';
 }
 
 client.on('voiceStateUpdate', async (memberOldState, memberNewState) => {
@@ -1532,80 +1567,14 @@ client.on('voiceStateUpdate', async (memberOldState, memberNewState) => {
       // if the channel is empty we are going to need to add a new one
       if (joinedChannel.members < 1) {
         // FN: add a new channel(s) relative to channel
-        const guild = await client.guilds.get(process.env.DFZ_GUILD);
+        const guild = await client.guilds.fetch(process.env.DFZ_GUILD);
         // gotta do special stuff for each type of lobby
         if (channelArray === lobbyArray) {
-          const lastChannel = lobbyArray[lobbyArray.length - 1];
-          const lastDiscordChannel = await client.channels.get(lastChannel.ids[2]);
-
-          const newMainChannel = await guild.createChannel(`🤍 Main Lobby #${lastChannel.order + 1}`, {
-            type: 'voice',
-            position: lastDiscordChannel.position,
-            parent: lastDiscordChannel.parent,
-            userLimit: 99
-          });
-
-          const newRadiantChannel = await guild.createChannel(`Team Radiant #${lastChannel.order + 1}`, {
-            type: 'voice',
-            position: lastDiscordChannel.position,
-            parent: lastDiscordChannel.parent,
-            userLimit: 6
-          });
-
-          const newDireChannel = await guild.createChannel(`Team Dire #${lastChannel.order + 1}`, {
-            type: 'voice',
-            position: lastDiscordChannel.position,
-            parent: lastDiscordChannel.parent,
-            userLimit: 6
-          });
-
-          lobbyArray.push({
-            ids: [newMainChannel.id, newRadiantChannel.id, newDireChannel.id],
-            name: newMainChannel.name,
-            order: lastChannel.order + 1,
-            members: 0,
-          });
-
-          watchingVoiceChannels[newMainChannel.id] = 'lobbyArray';
-          watchingVoiceChannels[newRadiantChannel.id] = 'lobbyArray';
-          watchingVoiceChannels[newDireChannel.id] = 'lobbyArray';
+          await addLobbyArrayChannel();
         } else if (channelArray === teamArray) {
-          const lastChannel = teamArray[teamArray.length - 1];
-          const lastDiscordChannel = await client.channels.get(lastChannel.id);
-
-          const newTeamChannel = await guild.createChannel(`Team #${lastChannel.order + 1}`, {
-            type: 'voice',
-            position: lastDiscordChannel.position,
-            parent: lastDiscordChannel.parent,
-            userLimit: 6
-          });
-
-          teamArray.push({
-            id: newTeamChannel.id,
-            name: newTeamChannel.name,
-            order: lastChannel.order + 1,
-            members: 0
-          });
-
-          watchingVoiceChannels[newTeamChannel.id] = 'teamArray';
+          await addTeamArrayChannel();
         } else if (channelArray === generalArray) {
-          const lastChannel = generalArray[generalArray.length - 1];
-          const lastDiscordChannel = await client.channels.get(lastChannel.id);
-
-          const newGeneralChannel = await guild.createChannel(`General #${lastChannel.order + 1}`, {
-            type: 'voice',
-            position: lastDiscordChannel.position,
-            parent: lastDiscordChannel.parent
-          });
-
-          generalArray.push({
-            id: newGeneralChannel.id,
-            name: newGeneralChannel.name,
-            order: lastChannel.order + 1,
-            members: 0
-          });
-
-          watchingVoiceChannels[newGeneralChannel.id] = 'generalArray';
+          await addGeneralArrayChannel();
         }
 
         joinedChannel.members++;
@@ -1638,7 +1607,7 @@ client.on('voiceStateUpdate', async (memberOldState, memberNewState) => {
         // leaving a channel with people in it, dont need to do much
         leftChannel.members--;
       } else {
-        const guild = await client.guilds.get(process.env.DFZ_GUILD);
+        const guild = await client.guilds.fetch(process.env.DFZ_GUILD);
 
         // last one to leave the channel, time to delete shit
         // loop through all the channels, if its the one they left, delete it, then
@@ -1648,9 +1617,9 @@ client.on('voiceStateUpdate', async (memberOldState, memberNewState) => {
           let deleted = false;
           for (const channel of lobbyArray) {
             if (channel === leftChannel) {
-              const leftMainLobbyDiscordChannel = await client.channels.get(channel.ids[0]);
-              const leftRadiantDiscordChannel = await client.channels.get(channel.ids[1]);
-              const leftDireDiscordChannel = await client.channels.get(channel.ids[2]);
+              const leftMainLobbyDiscordChannel = await client.channels.fetch(channel.ids[0]);
+              const leftRadiantDiscordChannel = await client.channels.fetch(channel.ids[1]);
+              const leftDireDiscordChannel = await client.channels.fetch(channel.ids[2]);
               await leftMainLobbyDiscordChannel.delete();
               await leftRadiantDiscordChannel.delete();
               await leftDireDiscordChannel.delete();
@@ -1661,9 +1630,9 @@ client.on('voiceStateUpdate', async (memberOldState, memberNewState) => {
 
             if (deleted) {
               // alter the names
-              const mainLobbyDiscordChannel = await client.channels.get(channel.ids[0]);
-              const radiantDiscordChannel = await client.channels.get(channel.ids[1]);
-              const direDiscordChannel = await client.channels.get(channel.ids[2]);
+              const mainLobbyDiscordChannel = await client.channels.fetch(channel.ids[0]);
+              const radiantDiscordChannel = await client.channels.fetch(channel.ids[1]);
+              const direDiscordChannel = await client.channels.fetch(channel.ids[2]);
               await mainLobbyDiscordChannel.edit({ name: `🤍 Main Lobby #${channel.order - 1}` });
               await radiantDiscordChannel.edit({ name: `Team Radiant #${channel.order - 1}` });
               await direDiscordChannel.edit({ name: `Team Dire #${channel.order - 1}` });
@@ -1681,7 +1650,7 @@ client.on('voiceStateUpdate', async (memberOldState, memberNewState) => {
           let deleted = false;
           for (const channel of teamArray) {
             if (channel === leftChannel) {
-              const leftDiscordChannel = await client.channels.get(channel.id);
+              const leftDiscordChannel = await client.channels.fetch(channel.id);
               await leftDiscordChannel.delete();
 
               deleted = true;
@@ -1690,7 +1659,7 @@ client.on('voiceStateUpdate', async (memberOldState, memberNewState) => {
 
             if (deleted) {
               // alter the names
-              const discordChannel = await client.channels.get(channel.id);
+              const discordChannel = await client.channels.fetch(channel.id);
               await discordChannel.edit({ name: `Team #${channel.order - 1}` });
 
               channel.order--;
@@ -1704,7 +1673,7 @@ client.on('voiceStateUpdate', async (memberOldState, memberNewState) => {
           let deleted = false;
           for (const channel of generalArray) {
             if (channel === leftChannel) {
-              const leftDiscordChannel = await client.channels.get(channel.id);
+              const leftDiscordChannel = await client.channels.fetch(channel.id);
               await leftDiscordChannel.delete();
 
               deleted = true;
@@ -1713,7 +1682,7 @@ client.on('voiceStateUpdate', async (memberOldState, memberNewState) => {
 
             if (deleted) {
               // alter the names
-              const discordChannel = await client.channels.get(channel.id);
+              const discordChannel = await client.channels.fetch(channel.id);
               await discordChannel.edit({ name: `General #${channel.order - 1}` });
 
               channel.order--;
@@ -1741,7 +1710,7 @@ client.on('voiceStateUpdate', async (memberOldState, memberNewState) => {
 */
 
 const generateQAEmbed = (questionText, author, footerText, answer) => {
-  const embed = new Discord.RichEmbed();
+  const embed = new Discord.MessageEmbed();
   embed.setColor([193, 109, 255]);
   embed.setDescription(questionText);
   embed.setAuthor(author.nickname || author.user.username, avatarUrl(author.user.id, author.user.avatar));
