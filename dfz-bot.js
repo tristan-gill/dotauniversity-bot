@@ -112,7 +112,7 @@ const scheduledLobbies = [{
     dayOfMonth: '*',
     month: '*',
     dayOfWeek: '2,4,0',
-    args: ['12', 'EU', 'lobby at 20:00 CET // 3PM EDT']
+    args: ['12', 'EU', 'lobby at 20:00 CET // 2PM EST']
   },
   {
     min: '1',
@@ -120,7 +120,7 @@ const scheduledLobbies = [{
     dayOfMonth: '*',
     month: '*',
     dayOfWeek: '2,3',
-    args: ['34', 'EU', 'lobby at 20:00 CET // 3PM EDT']
+    args: ['34', 'EU', 'lobby at 20:00 CET // 2PM EST']
   },
   {
     min: '0',
@@ -128,7 +128,7 @@ const scheduledLobbies = [{
     dayOfMonth: '*',
     month: '*',
     dayOfWeek: '1',
-    args: ['234', 'EU', 'lobby at 20:00 CET // 3PM EDT']
+    args: ['234', 'EU', 'lobby at 20:00 CET // 2PM EST']
   },
 
   {
@@ -137,7 +137,7 @@ const scheduledLobbies = [{
     dayOfMonth: '*',
     month: '*',
     dayOfWeek: '1,3,5',
-    args: ['12', 'NA', 'lobby at 9pm EDT']
+    args: ['12', 'NA', 'lobby at 9pm EST']
   },
   {
     min: '1',
@@ -145,7 +145,7 @@ const scheduledLobbies = [{
     dayOfMonth: '*',
     month: '*',
     dayOfWeek: '3,5',
-    args: ['34', 'NA', 'lobby at 9pm EDT']
+    args: ['34', 'NA', 'lobby at 9pm EST']
   },
   {
     min: '0',
