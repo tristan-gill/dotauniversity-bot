@@ -297,6 +297,23 @@ player = {
 }
 */
 
+const regionAlias = {
+  na: 'NA',
+  NA: 'NA',
+  nA: 'NA',
+  Na: 'NA',
+  eu: 'EU',
+  Eu: 'EU',
+  eU: 'EU',
+  EU: 'EU',
+  SEA: 'SEA',
+  Sea: 'SEA',
+  Aus: 'SEA',
+  AUS: 'SEA',
+  SeaAus: 'SEA',
+  'sea-aus': 'SEA'
+};
+
 //!post 12345 [NA 9:00pm EDT]
 commandForName['post'] = {
   execute: async (msg, args) => {
@@ -313,13 +330,19 @@ commandForName['post'] = {
       await postTryout(args);
     }
 
+    const region = args[1];
+    if (!regionAlias.hasOwnProperty(region)) {
+      return msg.channel.send('Region should be EU, NA or SEA');
+    }
+
     await postLobby(args);
   }
 }
 
 const postLobby = async (args) => {
   const tiersJoined = args[0];
-  const freeText = args.slice(1).join(' ');
+  const region = regionAlias[args[1]];
+  const freeText = args.slice(2).join(' ');
 
   const tiers = [];
   for (const tierString of tiersJoined) {
@@ -339,10 +362,22 @@ const postLobby = async (args) => {
     ],
     tiers,
     text: freeText,
-    locked: false
+    locked: false,
+    region
   };
 
-  const channel = await client.channels.fetch(process.env.DFZ_LOBBY_CHANNEL);
+  // const channel = await client.channels.fetch(process.env.DFZ_LOBBY_CHANNEL);
+  let channel;
+  if (region === 'EU') {
+    channel = await client.channels.fetch(process.env.EU_LOBBY_CHANNEL);
+  } else if (region === 'NA') {
+    channel = await client.channels.fetch(process.env.NA_LOBBY_CHANNEL);
+  } else if (region === 'SEA') {
+    channel = await client.channels.fetch(process.env.SEA_LOBBY_CHANNEL);
+  } else {
+    console.error('unknown region', args);
+    return;
+  }
 
   const tiersString = tiers.map((tier) => {
     return `<@&${tier}>`;
@@ -1003,10 +1038,11 @@ const generateEmbed = (lobby) => {
   }).join(' ');
 
   const lockedString = lobby.locked ? '🔒 ' : '';
+  const regionString = lobby.region ? lobby.region + ' ' : '';
 
   const embed = new Discord.MessageEmbed();
   embed.setColor('GOLD');
-  embed.setAuthor(`${lockedString}${lobby.text} - (${playerCount})`);
+  embed.setAuthor(`${lockedString}${regionString}${lobby.text} - (${playerCount})`);
   embed.setDescription(`Tiers: ${tiersString}`);
 
   for (let i = 0; i < lobby.fields.length; i++) {
@@ -1017,7 +1053,7 @@ const generateEmbed = (lobby) => {
         return `<@${player.id}>`;
       }).join(' ');
 
-      embed.addField(`Lobby ${i+1}`, playersString);
+      embed.addField(`Lobby ${i+1}`, playersString || '-');
     }
   }
 
