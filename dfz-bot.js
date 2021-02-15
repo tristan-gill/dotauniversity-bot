@@ -83,6 +83,8 @@ let mutex;
 
 client.once('ready', async () => {
   lobbies = [];
+  mutex = new Mutex();
+
   console.log('Ready!');
 
   await loadPastLobbies();
@@ -91,7 +93,6 @@ client.once('ready', async () => {
 
   await scheduleLobbies();
 
-  mutex = new Mutex();
   await createVoiceChannelHandling();
   await scheduleVoiceChannelUpdater();
 });
