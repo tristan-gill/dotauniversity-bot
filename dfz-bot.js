@@ -224,7 +224,9 @@ const saveUser = async (user, dbClient) => {
 
 // lobby database commands
 const loadPastLobbies = async () => {
-  const lobbyChannel = await client.channels.fetch(process.env.DFZ_LOBBY_CHANNEL);
+  const naLobbyChannel = await client.channels.fetch(process.env.NA_LOBBY_CHANNEL);
+  const euLobbyChannel = await client.channels.fetch(process.env.EU_LOBBY_CHANNEL);
+  const seaLobbyChannel = await client.channels.fetch(process.env.SEA_LOBBY_CHANNEL);
   const tryoutChannel = await client.channels.fetch(process.env.DFZ_TRYOUT_CHANNEL);
 
   // Get the saved lobbies from the database
@@ -236,7 +238,13 @@ const loadPastLobbies = async () => {
     // need to fetch the messages to add them to the cache
     try {
       if (lobby.type === 'beginner') {
-        const message = await lobbyChannel.messages.fetch(lobby.id);
+        if (lobby.region === 'NA') {
+          await naLobbyChannel.messages.fetch(lobby.id);
+        } else if (region === 'EU') {
+          await euLobbyChannel.messages.fetch(lobby.id);
+        } else {
+          await seaLobbyChannel.messages.fetch(lobby.id);
+        }
       } else if (lobby.type === 'tryout') {
         await tryoutChannel.messages.fetch(lobby.id);
       }
@@ -389,7 +397,6 @@ const postLobby = async (args) => {
   const message = await channel.send(embed);
 
   lobby.id = message.id;
-
   lobbies.push(lobby);
 
   await saveLobby({
@@ -881,18 +888,24 @@ client.on('raw', async (event) => {
     } = event;
 
     const user = await client.users.fetch(data.user_id);
-
     if (user.bot || !isWatchingChannel(data.channel_id)) {
       return;
     }
 
     const lobby = lobbies.find((lobby) => lobby.id === data.message_id);
-
     if (!lobby) {
       return;
     }
 
-    const channel = await client.channels.fetch(process.env.DFZ_LOBBY_CHANNEL);
+    let channel;
+    if (lobby.region === 'NA') {
+      channel = await client.channels.fetch(process.env.NA_LOBBY_CHANNEL);
+    } else if (lobby.region === 'EU') {
+      channel = await client.channels.fetch(process.env.EU_LOBBY_CHANNEL);
+    } else {
+      channel = await client.channels.fetch(process.env.SEA_LOBBY_CHANNEL);
+    }
+
     const message = await channel.messages.fetch(data.message_id);
     const positionNumber = emojiNumbers.indexOf(data.emoji.name);
 
@@ -1221,7 +1234,15 @@ commandForName['coach'] = {
       data: lobby
     });
 
-    const channel = await client.channels.fetch(process.env.DFZ_LOBBY_CHANNEL);
+    let channel;
+    if (lobby.region === 'NA') {
+      channel = await client.channels.fetch(process.env.NA_LOBBY_CHANNEL);
+    } else if (lobby.region === 'EU') {
+      channel = await client.channels.fetch(process.env.EU_LOBBY_CHANNEL);
+    } else {
+      channel = await client.channels.fetch(process.env.SEA_LOBBY_CHANNEL);
+    }
+
     const message = await channel.messages.fetch(lobby.id);
 
     if (message) {
@@ -1777,7 +1798,9 @@ function isOwner(userId) {
 
 function isWatchingChannel(discord_id) {
   return (
-    process.env.DFZ_LOBBY_CHANNEL === discord_id ||
+    process.env.NA_LOBBY_CHANNEL === discord_id ||
+    process.env.EU_LOBBY_CHANNEL === discord_id ||
+    process.env.SEA_LOBBY_CHANNEL === discord_id ||
     process.env.DFZ_COACHES_CHANNEL === discord_id
   );
 }
