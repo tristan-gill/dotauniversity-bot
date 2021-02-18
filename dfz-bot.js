@@ -88,7 +88,7 @@ client.once('ready', async () => {
   console.log('Ready!');
 
   await loadPastLobbies();
-console.log('loaded past')
+
   // await updateUsersTable();
 
   await scheduleLobbies();
@@ -225,16 +225,13 @@ const saveUser = async (user, dbClient) => {
 
 // lobby database commands
 const loadPastLobbies = async () => {
-  console.log('start loading past lobbies')
   const naLobbyChannel = await client.channels.fetch(process.env.NA_LOBBY_CHANNEL);
   const euLobbyChannel = await client.channels.fetch(process.env.EU_LOBBY_CHANNEL);
   const seaLobbyChannel = await client.channels.fetch(process.env.SEA_LOBBY_CHANNEL);
   const tryoutChannel = await client.channels.fetch(process.env.DFZ_TRYOUT_CHANNEL);
 
   // Get the saved lobbies from the database
-  console.log(1)
   const dbLobbies = await getLobbies();
-console.log({dbLobbies})
   for (const lobby of dbLobbies) {
     lobbies.push(lobby);
 
@@ -272,11 +269,9 @@ const saveLobby = async (lobby) => {
 }
 
 const getLobbies = async () => {
-  console.log('this is o tho')
   const query = 'select data from lobbies where deleted_at is null;';
 
   const response = await pool.query(query);
-  console.log({response})
 
   return response.rows.map((row) => {
     return row.data;
@@ -404,15 +399,10 @@ const postLobby = async (args) => {
   lobby.id = message.id;
   lobbies.push(lobby);
 
-  try {
-
-    await saveLobby({
-      id: message.id,
-      data: lobby
-    });
-  } catch (err) {
-    console.log({err})
-  }
+  await saveLobby({
+    id: message.id,
+    data: lobby
+  });
 
   await message.react('1️⃣');
   await message.react('2️⃣');
@@ -1582,13 +1572,6 @@ const addGeneralArrayChannel = async (guild) => {
 
   watchingVoiceChannels[newGeneralChannel.id] = 'generalArray';
 }
-
-commandForName['log'] = {
-  execute: async (msg, args) => {
-    console.log({generalArray, teamArray, lobbyArray, watchingVoiceChannels: JSON.stringify(watchingVoiceChannels)})
-  }
-}
-
 
 client.on('voiceStateUpdate', async (oldState, newState) => {
   // OK SO. Node will attempt to "multi-thread" event handlers like this at awaits. So
