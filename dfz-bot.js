@@ -241,7 +241,7 @@ const loadPastLobbies = async () => {
       if (lobby.type === 'beginner') {
         if (lobby.region === 'NA') {
           await naLobbyChannel.messages.fetch(lobby.id);
-        } else if (region === 'EU') {
+        } else if (lobby.region === 'EU') {
           await euLobbyChannel.messages.fetch(lobby.id);
         } else {
           await seaLobbyChannel.messages.fetch(lobby.id);
