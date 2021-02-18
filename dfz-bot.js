@@ -277,13 +277,18 @@ const saveLobby = async (lobby) => {
 }
 
 const getLobbies = async () => {
-  const query = 'select data from lobbies where deleted_at is null;';
+  try {
 
-  const response = await pool.query(query);
+    const query = 'select data from lobbies where deleted_at is null;';
 
-  return response.rows.map((row) => {
-    return row.data;
-  });
+    const response = await pool.query(query);
+
+    return response.rows.map((row) => {
+      return row.data;
+    });
+  } catch (err) {
+    console.log({err})
+  }
 }
 
 const deleteLobby = async (messageId) => {
