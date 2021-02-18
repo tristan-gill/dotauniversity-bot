@@ -88,7 +88,7 @@ client.once('ready', async () => {
   console.log('Ready!');
 
   await loadPastLobbies();
-
+console.log('loaded past')
   // await updateUsersTable();
 
   await scheduleLobbies();
@@ -231,8 +231,13 @@ const loadPastLobbies = async () => {
   const tryoutChannel = await client.channels.fetch(process.env.DFZ_TRYOUT_CHANNEL);
 
   // Get the saved lobbies from the database
+  try {
+    await getLobbies();
+  } catch (err) {
+    console.log(err)
+  }
   const dbLobbies = await getLobbies();
-
+console.log({dbLobbies})
   for (const lobby of dbLobbies) {
     lobbies.push(lobby);
 
@@ -400,10 +405,15 @@ const postLobby = async (args) => {
   lobby.id = message.id;
   lobbies.push(lobby);
 
-  await saveLobby({
-    id: message.id,
-    data: lobby
-  });
+  try {
+
+    await saveLobby({
+      id: message.id,
+      data: lobby
+    });
+  } catch (err) {
+    console.log({err})
+  }
 
   await message.react('1️⃣');
   await message.react('2️⃣');
