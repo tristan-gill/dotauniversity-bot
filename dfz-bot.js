@@ -230,13 +230,8 @@ const loadPastLobbies = async () => {
   const euLobbyChannel = await client.channels.fetch(process.env.EU_LOBBY_CHANNEL);
   const seaLobbyChannel = await client.channels.fetch(process.env.SEA_LOBBY_CHANNEL);
   const tryoutChannel = await client.channels.fetch(process.env.DFZ_TRYOUT_CHANNEL);
-console.log('hellpa')
+
   // Get the saved lobbies from the database
-  try {
-    await getLobbies();
-  } catch (err) {
-    console.log(err)
-  }
   console.log(1)
   const dbLobbies = await getLobbies();
 console.log({dbLobbies})
@@ -282,6 +277,7 @@ const getLobbies = async () => {
     const query = 'select data from lobbies where deleted_at is null;';
 
     const response = await pool.query(query);
+    console.log({response})
 
     return response.rows.map((row) => {
       return row.data;
