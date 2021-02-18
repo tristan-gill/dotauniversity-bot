@@ -225,17 +225,19 @@ const saveUser = async (user, dbClient) => {
 
 // lobby database commands
 const loadPastLobbies = async () => {
+  console.log('start loading past lobbies')
   const naLobbyChannel = await client.channels.fetch(process.env.NA_LOBBY_CHANNEL);
   const euLobbyChannel = await client.channels.fetch(process.env.EU_LOBBY_CHANNEL);
   const seaLobbyChannel = await client.channels.fetch(process.env.SEA_LOBBY_CHANNEL);
   const tryoutChannel = await client.channels.fetch(process.env.DFZ_TRYOUT_CHANNEL);
-
+console.log('hellpa')
   // Get the saved lobbies from the database
   try {
     await getLobbies();
   } catch (err) {
     console.log(err)
   }
+  console.log(1)
   const dbLobbies = await getLobbies();
 console.log({dbLobbies})
   for (const lobby of dbLobbies) {
