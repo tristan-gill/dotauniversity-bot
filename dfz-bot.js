@@ -87,14 +87,12 @@ client.once('ready', async () => {
 
   console.log('Ready!');
 
-  await loadPastLobbies();
-
-  // await updateUsersTable();
-
-  await scheduleLobbies();
-
   await createVoiceChannelHandling();
   await scheduleVoiceChannelUpdater();
+
+  // await loadPastLobbies();
+  // await scheduleLobbies();
+
 });
 
 
