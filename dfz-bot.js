@@ -13,7 +13,9 @@ const CronJob = require('cron').CronJob;
 const Pool = require('pg').Pool;
 const pool = new Pool({
   connectionString: process.env.HEROKU_POSTGRESQL_ONYX_URL,
-  ssl: true
+  ssl: {
+    rejectUnauthorized: false
+  }
 });
 
 // express stuff to keep heroku happy
@@ -85,14 +87,13 @@ client.once('ready', async () => {
   lobbies = [];
   mutex = new Mutex();
 
-  console.log('Ready!');
-
   await createVoiceChannelHandling();
   await scheduleVoiceChannelUpdater();
 
-  // await loadPastLobbies();
-  // await scheduleLobbies();
+  await loadPastLobbies();
+  await scheduleLobbies();
 
+  console.log('Ready!');
 });
 
 
