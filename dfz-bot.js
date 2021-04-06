@@ -144,7 +144,7 @@ const scheduledLobbies = [{
     hour: '21',
     dayOfMonth: '*',
     month: '*',
-    dayOfWeek: '1,5',
+    dayOfWeek: '3',
     args: ['34', 'NA', 'lobby at 9pm EST']
   },
   {
@@ -152,7 +152,7 @@ const scheduledLobbies = [{
     hour: '21',
     dayOfMonth: '*',
     month: '*',
-    dayOfWeek: '0,3',
+    dayOfWeek: '0',
     args: ['23', 'NA', 'lobby at 9pm EST']
   }
 ];
