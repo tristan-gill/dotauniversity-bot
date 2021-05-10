@@ -974,7 +974,7 @@ const addToLobby = async (lobby, user, reaction, tier, positionNumber) => {
   }
 
   // if this field has 9 players in it, sort it, and the previous fields
-  const sortFields = lobby.fields[fieldIndex].length === 9;
+  const sortFields = false; //lobby.fields[fieldIndex].length === 9; // disabled for now
 
   lobby.fields[fieldIndex].push(player);
 
