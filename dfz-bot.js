@@ -136,24 +136,16 @@ const scheduledLobbies = [{
     hour: '21',
     dayOfMonth: '*',
     month: '*',
-    dayOfWeek: '1,5',
-    args: ['12', 'NA', 'lobby at 9pm EDT']
-  },
-  {
-    min: '1',
-    hour: '21',
-    dayOfMonth: '*',
-    month: '*',
-    dayOfWeek: '3',
-    args: ['34', 'NA', 'lobby at 9pm EDT']
+    dayOfWeek: '2,5',
+    args: ['234', 'NA', 'lobby at 9pm EDT']
   },
   {
     min: '0',
     hour: '21',
     dayOfMonth: '*',
     month: '*',
-    dayOfWeek: '0',
-    args: ['23', 'NA', 'lobby at 9pm EDT']
+    dayOfWeek: '6,0',
+    args: ['123', 'NA', 'lobby at 9pm EDT']
   }
 ];
 
@@ -610,7 +602,7 @@ const messageReactionAdd = async (reaction, user) => {
   // if is a coach
   const isCoach = guildUser.roles.cache.some((role) => role.id === process.env.COACH);
   const isAdmin = guildUser.roles.cache.some((role) => role.id === process.env.DFZ_ADMIN);
-
+  const isGradCoach = guildUser.roles.cache.some((role) => role.id === process.env.GRAD_COACH);
 
   // tip handling
   if (reaction.emoji.name === 'Tip') {
@@ -722,7 +714,7 @@ const messageReactionAdd = async (reaction, user) => {
     return reaction.users.remove(user);
   }
 
-  if (isCoach || isAdmin) {
+  if (isCoach || isAdmin || isGradCoach) {
     console.log(`${user.id} reacted with ${reaction.emoji.name}`);
     if (reaction.emoji.name === '✅') {
       // remind
