@@ -4,9 +4,7 @@ const Discord = require('discord.js');
 const client = new Discord.Client();
 const moment = require('moment');
 const Mutex = require('async-mutex').Mutex;
-
 const express = require('express');
-
 const CronJob = require('cron').CronJob;
 
 // Database stuff
