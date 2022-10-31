@@ -91,7 +91,7 @@ client.once('ready', async () => {
   await scheduleVoiceChannelUpdater();
 
   await loadPastLobbies();
-  await scheduleLobbies();
+  // await scheduleLobbies();
 
   console.log('Ready!');
 });
